@@ -106,7 +106,7 @@ The application will automatically:
 ┌────────▼────────┐
 │   Backend       │
 │   (Rust)        │ ← Port 8082
-│   Actix-web     │
+│   Axum-web     │
 └────────┬────────┘
          │
 ┌────────▼────────┐
