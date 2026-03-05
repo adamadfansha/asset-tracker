@@ -52,6 +52,11 @@ async fn main() {
         .route("/api/dividends/:id", delete(delete_dividend))
         .route("/api/dashboard", get(get_dashboard_data))
         .route("/api/history", get(get_history))
+        .route("/api/allocation-preferences", get(get_allocation_preferences))
+        .route("/api/allocation-preferences", post(update_allocation_preferences))
+        .route("/api/asset-class-categories", get(get_asset_class_categories))
+        .route("/api/asset-class-categories", post(update_asset_class_category))
+        .route("/api/rebalancing/calculate", post(calculate_rebalancing))
         .layer(CorsLayer::permissive())
         .with_state(state);
     

@@ -28,6 +28,14 @@ A comprehensive personal financial asset tracking application built with modern 
 - **Default Categories** - Pre-configured with common asset types
 - **Flexible Management** - Edit and organize your asset categories
 
+### 🎯 Investment Rebalancing
+- **Smart Allocation Calculator** - Calculate optimal investment distribution based on target percentages
+- **Target Allocation Settings** - Set and customize target allocation percentages for each asset category
+- **Asset Class Mapping** - Map individual assets to broader categories (Cash, Mutual Fund, Stock, Gold, Bitcoin, Other)
+- **Proportional Distribution** - Automatically distributes additional investment proportionally based on current gaps
+- **Visual Recommendations** - Clear breakdown showing current amounts, target amounts, and suggested allocations
+- **Real-time Calculations** - Instant recommendations as you input investment amounts
+
 ### 🔒 Data Validation
 - **Future Date Prevention** - Cannot input data for future months
 - **Input Formatting** - Automatic number formatting with thousand separators
@@ -41,6 +49,8 @@ A comprehensive personal financial asset tracking application built with modern 
 ### Dividend Tracker
 ![Dividends](./screenshots/Dividens.png)
 
+### Rebalancing
+![Rebalancing](./screenshots/Rebalancing.png)
 
 ## 🚀 Quick Start
 
@@ -151,11 +161,59 @@ The application will automatically:
   {
     "stock_name": "BBCA",
     "amount": 500000,
-    "dividend_month": 2,
-    "dividend_year": 2026
+    "received_month": 2,
+    "received_year": 2026
   }
   ```
+- `PUT /api/dividends/:id` - Update dividend record
 - `DELETE /api/dividends/:id` - Delete dividend record
+
+### Allocation Preferences
+- `GET /api/allocation-preferences` - Get target allocation percentages
+- `POST /api/allocation-preferences` - Update allocation preferences
+  ```json
+  [
+    {
+      "category_name": "Cash",
+      "target_percentage": 20.0
+    },
+    {
+      "category_name": "Mutual Fund",
+      "target_percentage": 30.0
+    },
+    {
+      "category_name": "Stock",
+      "target_percentage": 25.0
+    },
+    {
+      "category_name": "Gold",
+      "target_percentage": 15.0
+    },
+    {
+      "category_name": "Bitcoin",
+      "target_percentage": 10.0
+    }
+  ]
+  ```
+
+### Asset Class Categories
+- `GET /api/asset-class-categories` - Get asset class to category mappings
+- `POST /api/asset-class-categories` - Update asset class category mapping
+  ```json
+  {
+    "asset_class_id": 1,
+    "category_name": "Stock"
+  }
+  ```
+
+### Rebalancing
+- `POST /api/rebalancing/calculate` - Calculate investment recommendations
+  ```json
+  {
+    "additional_amount": 2000000
+  }
+  ```
+  Response includes current total, target allocations, and suggested distribution of new investment.
 
 ## 🛠️ Development
 
@@ -169,7 +227,8 @@ asset-allocation/
 │   │   │   ├── Dashboard.vue
 │   │   │   ├── AssetManager.vue
 │   │   │   ├── DividendTracker.vue
-│   │   │   └── AssetClassManager.vue
+│   │   │   ├── AssetClassManager.vue
+│   │   │   └── Rebalancing.vue
 │   │   ├── App.vue
 │   │   ├── main.js
 │   │   └── style.css
@@ -184,7 +243,8 @@ asset-allocation/
 │   │   └── models.rs
 │   ├── migrations/
 │   │   ├── 001_init.sql
-│   │   └── 002_update_dividends.sql
+│   │   ├── 002_update_dividends.sql
+│   │   └── 003_allocation_preferences.sql
 │   ├── Dockerfile
 │   └── Cargo.toml
 └── docker-compose.yml

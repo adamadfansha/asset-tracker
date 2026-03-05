@@ -302,3 +302,222 @@ pub async fn get_history(
     
     Ok(Json(serde_json::json!(result)))
 }
+
+// Allocation Preferences Handlers
+pub async fn get_allocation_preferences(
+    State(state): State<Arc<AppState>>
+) -> Result<Json<Vec<AllocationPreference>>, StatusCode> {
+    let preferences = sqlx::query_as::<_, AllocationPreference>(
+        "SELECT id, category_name, target_percentage FROM allocation_preferences ORDER BY target_percentage DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok(Json(preferences))
+}
+
+pub async fn update_allocation_preferences(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<Vec<UpdateAllocationPreference>>
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    // Validate total percentage = 100
+    let total: f64 = payload.iter().map(|p| p.target_percentage).sum();
+    if (total - 100.0).abs() > 0.01 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
+    let mut tx = state.db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    for pref in payload.iter() {
+        let decimal_percentage = Decimal::from_f64(pref.target_percentage).unwrap_or(Decimal::ZERO);
+        sqlx::query(
+            "INSERT INTO allocation_preferences (category_name, target_percentage) 
+             VALUES ($1, $2)
+             ON CONFLICT (category_name) 
+             DO UPDATE SET target_percentage = $2, updated_at = CURRENT_TIMESTAMP"
+        )
+        .bind(&pref.category_name)
+        .bind(decimal_percentage)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    
+    tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::OK, Json(serde_json::json!({"success": true}))))
+}
+
+pub async fn get_asset_class_categories(
+    State(state): State<Arc<AppState>>
+) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
+    #[derive(sqlx::FromRow)]
+    struct AssetClassWithCategory {
+        asset_class_id: i32,
+        asset_class_name: String,
+        category_name: Option<String>,
+    }
+    
+    let mappings = sqlx::query_as::<_, AssetClassWithCategory>(
+        r#"
+        SELECT 
+            ac.id as asset_class_id,
+            ac.name as asset_class_name,
+            acc.category_name
+        FROM asset_classes ac
+        LEFT JOIN asset_class_categories acc ON ac.id = acc.asset_class_id
+        WHERE ac.is_active = true
+        ORDER BY ac.name
+        "#
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let result: Vec<_> = mappings.iter().map(|m| {
+        serde_json::json!({
+            "asset_class_id": m.asset_class_id,
+            "asset_class_name": m.asset_class_name,
+            "category_name": m.category_name.as_ref().unwrap_or(&"Other".to_string())
+        })
+    }).collect();
+    
+    Ok(Json(result))
+}
+
+pub async fn update_asset_class_category(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateAssetClassCategory>
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    sqlx::query(
+        "INSERT INTO asset_class_categories (asset_class_id, category_name) 
+         VALUES ($1, $2)
+         ON CONFLICT (asset_class_id) 
+         DO UPDATE SET category_name = $2"
+    )
+    .bind(payload.asset_class_id)
+    .bind(&payload.category_name)
+    .execute(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::OK, Json(serde_json::json!({"success": true}))))
+}
+
+pub async fn calculate_rebalancing(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<RebalancingInput>
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get current assets with their categories
+    #[derive(sqlx::FromRow)]
+    struct CurrentAssetWithCategory {
+        name: String,
+        amount: rust_decimal::Decimal,
+        category_name: Option<String>,
+    }
+    
+    let current_assets = sqlx::query_as::<_, CurrentAssetWithCategory>(
+        r#"
+        SELECT 
+            ac.name, 
+            s.amount,
+            acc.category_name
+        FROM asset_snapshots s
+        INNER JOIN asset_classes ac ON s.asset_class_id = ac.id
+        LEFT JOIN asset_class_categories acc ON ac.id = acc.asset_class_id
+        WHERE (s.snapshot_year, s.snapshot_month) = (
+            SELECT snapshot_year, snapshot_month 
+            FROM asset_snapshots 
+            ORDER BY snapshot_year DESC, snapshot_month DESC 
+            LIMIT 1
+        )
+        "#
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Group by category
+    let mut grouped_assets: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let mut category_breakdown: std::collections::HashMap<String, Vec<(String, f64)>> = std::collections::HashMap::new();
+    
+    for asset in current_assets.iter() {
+        let amount = asset.amount.to_f64().unwrap_or(0.0);
+        let category = asset.category_name.as_ref().unwrap_or(&"Other".to_string()).clone();
+        
+        *grouped_assets.entry(category.clone()).or_insert(0.0) += amount;
+        category_breakdown.entry(category).or_insert_with(Vec::new).push((asset.name.clone(), amount));
+    }
+    
+    let current_total: f64 = current_assets.iter()
+        .map(|a| a.amount.to_f64().unwrap_or(0.0))
+        .sum();
+    
+    let new_total = current_total + payload.additional_amount;
+    
+    // Get allocation preferences
+    let preferences = sqlx::query_as::<_, AllocationPreference>(
+        "SELECT id, category_name, target_percentage FROM allocation_preferences ORDER BY target_percentage DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // Calculate target amounts and allocations
+    let mut recommendations = Vec::new();
+    let mut total_positive_difference = 0.0;
+    let mut temp_recommendations = Vec::new();
+    
+    // First pass: calculate differences and total positive difference
+    for pref in preferences.iter() {
+        let target_percentage = pref.target_percentage.to_f64().unwrap_or(0.0);
+        let target_amount = new_total * (target_percentage / 100.0);
+        let current_amount = grouped_assets.get(&pref.category_name).copied().unwrap_or(0.0);
+        let difference = target_amount - current_amount;
+        
+        if difference > 0.0 {
+            total_positive_difference += difference;
+        }
+        
+        temp_recommendations.push((pref.category_name.clone(), target_percentage, current_amount, target_amount, difference));
+    }
+    
+    // Second pass: allocate additional amount proportionally
+    for (category_name, target_percentage, current_amount, target_amount, difference) in temp_recommendations {
+        let allocation_from_new = if difference > 0.0 && total_positive_difference > 0.0 {
+            // Allocate proportionally based on how much this category needs
+            let proportion = difference / total_positive_difference;
+            (payload.additional_amount * proportion).min(difference)
+        } else {
+            0.0
+        };
+        
+        // Get breakdown for this category
+        let breakdown = category_breakdown.get(&category_name).map(|items| {
+            items.iter().map(|(name, amount)| {
+                serde_json::json!({
+                    "name": name,
+                    "amount": amount
+                })
+            }).collect::<Vec<_>>()
+        });
+        
+        recommendations.push(serde_json::json!({
+            "asset_class": category_name,
+            "target_percentage": target_percentage,
+            "current_amount": current_amount,
+            "target_amount": target_amount,
+            "difference": difference,
+            "suggested_allocation": allocation_from_new,
+            "breakdown": breakdown
+        }));
+    }
+    
+    Ok(Json(serde_json::json!({
+        "current_total": current_total,
+        "additional_amount": payload.additional_amount,
+        "new_total": new_total,
+        "recommendations": recommendations
+    })))
+}

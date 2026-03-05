@@ -62,3 +62,35 @@ pub struct CreateDividend {
     pub received_month: i32,
     pub received_year: i32,
 }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct AllocationPreference {
+    pub id: i32,
+    pub category_name: String,
+    #[serde(serialize_with = "serialize_decimal_as_f64")]
+    pub target_percentage: Decimal,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateAllocationPreference {
+    pub category_name: String,
+    pub target_percentage: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct AssetClassCategory {
+    pub id: i32,
+    pub asset_class_id: i32,
+    pub category_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateAssetClassCategory {
+    pub asset_class_id: i32,
+    pub category_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RebalancingInput {
+    pub additional_amount: f64,
+}
