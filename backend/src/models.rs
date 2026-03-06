@@ -94,3 +94,26 @@ pub struct UpdateAssetClassCategory {
 pub struct RebalancingInput {
     pub additional_amount: f64,
 }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TelegramSettings {
+    pub id: i32,
+    pub bot_token: String,
+    pub chat_id: Option<String>,
+    pub is_enabled: bool,
+    pub auto_send_enabled: bool,
+    pub last_sent_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTelegramSettings {
+    pub bot_token: String,
+    pub chat_id: Option<String>,
+    pub is_enabled: bool,
+    pub auto_send_enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SendTelegramRequest {
+    pub chat_id: String,
+}

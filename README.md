@@ -36,6 +36,13 @@ A comprehensive personal financial asset tracking application built with modern 
 - **Visual Recommendations** - Clear breakdown showing current amounts, target amounts, and suggested allocations
 - **Real-time Calculations** - Instant recommendations as you input investment amounts
 
+### � Telegram Integration
+- **Automated Reports** - Send financial dashboard reports directly to Telegram
+- **Manual Send** - Send reports on-demand to any Telegram chat
+- **Auto-Scheduling** - Automatically send reports on the last day of each month at 23:00
+- **Rich Formatting** - Reports include total assets, dividends, and allocation breakdown
+- **Easy Setup** - Simple configuration with bot token and chat ID
+
 ### 🔒 Data Validation
 - **Future Date Prevention** - Cannot input data for future months
 - **Input Formatting** - Automatic number formatting with thousand separators
@@ -214,6 +221,48 @@ The application will automatically:
   }
   ```
   Response includes current total, target allocations, and suggested distribution of new investment.
+
+### Telegram Settings
+- `GET /api/telegram/settings` - Get Telegram configuration
+- `POST /api/telegram/settings` - Update Telegram settings
+  ```json
+  {
+    "bot_token": "your_bot_token_here",
+    "chat_id": "your_chat_id",
+    "is_enabled": true,
+    "auto_send_enabled": true
+  }
+  ```
+- `POST /api/telegram/send` - Send report to Telegram
+  ```json
+  {
+    "chat_id": "target_chat_id"
+  }
+  ```
+
+### Telegram Setup Guide
+
+1. **Create a Telegram Bot**
+   - Open Telegram and search for `@BotFather`
+   - Send `/newbot` command
+   - Follow instructions to create your bot
+   - Copy the bot token provided
+
+2. **Get Your Chat ID**
+   - Start a chat with your bot
+   - Search for `@userinfobot` on Telegram
+   - Send any message to get your chat ID
+
+3. **Configure in Application**
+   - Go to Telegram tab in the application
+   - Paste your bot token
+   - Paste your chat ID
+   - Enable Telegram integration
+   - Optionally enable auto-send for monthly reports
+
+4. **Test the Integration**
+   - Click "Send Report Now" button
+   - Check your Telegram for the financial report
 
 ## 🛠️ Development
 

@@ -18,6 +18,9 @@
       <button class="tab" :class="{ active: activeTab === 'rebalancing' }" @click="activeTab = 'rebalancing'">
         🎯 Rebalancing
       </button>
+      <button class="tab" :class="{ active: activeTab === 'telegram' }" @click="activeTab = 'telegram'">
+        📱 Telegram
+      </button>
       <button class="tab" :class="{ active: activeTab === 'classes' }" @click="activeTab = 'classes'">
         🏷️ Categories
       </button>
@@ -39,6 +42,10 @@
       <Rebalancing />
     </div>
 
+    <div v-if="activeTab === 'telegram'">
+      <TelegramSettings />
+    </div>
+
     <div v-if="activeTab === 'classes'">
       <AssetClassManager @updated="refreshDashboard" />
     </div>
@@ -51,6 +58,7 @@ import Dashboard from './components/Dashboard.vue'
 import AssetManager from './components/AssetManager.vue'
 import DividendTracker from './components/DividendTracker.vue'
 import Rebalancing from './components/Rebalancing.vue'
+import TelegramSettings from './components/TelegramSettings.vue'
 import AssetClassManager from './components/AssetClassManager.vue'
 
 export default {
@@ -60,6 +68,7 @@ export default {
     AssetManager,
     DividendTracker,
     Rebalancing,
+    TelegramSettings,
     AssetClassManager
   },
   setup() {

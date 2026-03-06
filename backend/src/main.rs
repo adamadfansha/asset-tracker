@@ -57,8 +57,17 @@ async fn main() {
         .route("/api/asset-class-categories", get(get_asset_class_categories))
         .route("/api/asset-class-categories", post(update_asset_class_category))
         .route("/api/rebalancing/calculate", post(calculate_rebalancing))
+        .route("/api/telegram/settings", get(get_telegram_settings))
+        .route("/api/telegram/settings", post(update_telegram_settings))
+        .route("/api/telegram/send", post(send_telegram_report))
         .layer(CorsLayer::permissive())
-        .with_state(state);
+        .with_state(state.clone());
+    
+    // Start scheduler for auto-send
+    let scheduler_state = state.clone();
+    tokio::spawn(async move {
+        start_telegram_scheduler(scheduler_state).await;
+    });
     
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080")
         .await
@@ -71,4 +80,53 @@ async fn main() {
 
 async fn health_check() -> Json<serde_json::Value> {
     Json(serde_json::json!({"status": "ok"}))
+}
+
+async fn start_telegram_scheduler(state: Arc<AppState>) {
+    use tokio_cron_scheduler::{JobScheduler, Job};
+    use chrono::Datelike;
+    
+    let sched = JobScheduler::new().await.unwrap();
+    
+    // Run every day at 23:00 and check if it's the last day of the month
+    let job = Job::new_async("0 0 23 * * *", move |_uuid, _l| {
+        let state = state.clone();
+        Box::pin(async move {
+            // Check if today is the last day of the month
+            let now = chrono::Local::now();
+            let tomorrow = now + chrono::Duration::days(1);
+            
+            // If tomorrow is a different month, today is the last day
+            if now.month() != tomorrow.month() {
+                tracing::info!("Running scheduled Telegram report (last day of month)");
+                
+                // Get settings
+                let settings_result = sqlx::query_as::<_, models::TelegramSettings>(
+                    "SELECT id, bot_token, chat_id, is_enabled, auto_send_enabled, last_sent_at FROM telegram_settings LIMIT 1"
+                )
+                .fetch_one(&state.db)
+                .await;
+                
+                if let Ok(settings) = settings_result {
+                    if settings.auto_send_enabled && settings.is_enabled {
+                        if let Some(chat_id) = settings.chat_id {
+                            let payload = models::SendTelegramRequest { chat_id };
+                            let _ = send_telegram_report(
+                                axum::extract::State(state.clone()),
+                                Json(payload)
+                            ).await;
+                        }
+                    }
+                }
+            }
+        })
+    }).unwrap();
+    
+    sched.add(job).await.unwrap();
+    sched.start().await.unwrap();
+    
+    // Keep scheduler running
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+    }
 }

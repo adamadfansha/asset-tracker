@@ -15,7 +15,10 @@ pub async fn get_asset_classes(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching asset classes: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok(Json(classes))
 }
@@ -30,7 +33,10 @@ pub async fn create_asset_class(
     .bind(&payload.name)
     .fetch_one(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error creating asset class: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok((StatusCode::CREATED, Json(class)))
 }
@@ -43,7 +49,10 @@ pub async fn get_snapshots(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching snapshots: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok(Json(snapshots))
 }
@@ -142,7 +151,10 @@ pub async fn get_dividends(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching dividends: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok(Json(dividends))
 }
@@ -312,7 +324,10 @@ pub async fn get_allocation_preferences(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching allocation preferences: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok(Json(preferences))
 }
@@ -321,9 +336,10 @@ pub async fn update_allocation_preferences(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<Vec<UpdateAllocationPreference>>
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-    // Validate total percentage = 100
+    // Validate total percentage equals 100
     let total: f64 = payload.iter().map(|p| p.target_percentage).sum();
-    if (total - 100.0).abs() > 0.01 {
+    const TOLERANCE: f64 = 0.01;
+    if (total - 100.0).abs() > TOLERANCE {
         return Err(StatusCode::BAD_REQUEST);
     }
     
@@ -373,7 +389,10 @@ pub async fn get_asset_class_categories(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching asset class categories: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     let result: Vec<_> = mappings.iter().map(|m| {
         serde_json::json!({
@@ -436,7 +455,10 @@ pub async fn calculate_rebalancing(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching current assets for rebalancing: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     // Group by category
     let mut grouped_assets: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
@@ -462,7 +484,10 @@ pub async fn calculate_rebalancing(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|e| {
+        eprintln!("Error fetching preferences for rebalancing: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     // Calculate target amounts and allocations
     let mut recommendations = Vec::new();
@@ -520,4 +545,183 @@ pub async fn calculate_rebalancing(
         "new_total": new_total,
         "recommendations": recommendations
     })))
+}
+
+// Telegram Settings Handlers
+pub async fn get_telegram_settings(
+    State(state): State<Arc<AppState>>
+) -> Result<Json<TelegramSettings>, StatusCode> {
+    let settings = sqlx::query_as::<_, TelegramSettings>(
+        "SELECT id, bot_token, chat_id, is_enabled, auto_send_enabled, last_sent_at FROM telegram_settings LIMIT 1"
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching telegram settings: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(settings))
+}
+
+pub async fn update_telegram_settings(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateTelegramSettings>
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    sqlx::query(
+        "UPDATE telegram_settings SET bot_token = $1, chat_id = $2, is_enabled = $3, auto_send_enabled = $4, updated_at = CURRENT_TIMESTAMP"
+    )
+    .bind(&payload.bot_token)
+    .bind(&payload.chat_id)
+    .bind(payload.is_enabled)
+    .bind(payload.auto_send_enabled)
+    .execute(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::OK, Json(serde_json::json!({"success": true}))))
+}
+
+pub async fn send_telegram_report(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<SendTelegramRequest>
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    // Get telegram settings
+    let settings = sqlx::query_as::<_, TelegramSettings>(
+        "SELECT id, bot_token, chat_id, is_enabled, auto_send_enabled, last_sent_at FROM telegram_settings LIMIT 1"
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching telegram settings for report: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    if settings.bot_token.is_empty() {
+        eprintln!("Telegram bot token is empty");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
+    // Get current dashboard data
+    let dashboard_data = get_dashboard_data(State(state.clone())).await?;
+    
+    // Get previous month data for comparison
+    let previous_total = get_previous_month_total(&state.db).await.unwrap_or(0.0);
+    
+    // Format message
+    let message = format_telegram_message(&dashboard_data.0, previous_total);
+    
+    // Send to Telegram
+    let client = reqwest::Client::new();
+    let url = format!("https://api.telegram.org/bot{}/sendMessage", settings.bot_token);
+    
+    let response = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "chat_id": payload.chat_id,
+            "text": message,
+            "parse_mode": "HTML"
+        }))
+        .send()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    if !response.status().is_success() {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    
+    // Update last sent timestamp
+    sqlx::query("UPDATE telegram_settings SET last_sent_at = CURRENT_TIMESTAMP")
+        .execute(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::OK, Json(serde_json::json!({"success": true, "message": "Report sent successfully"}))))
+}
+
+async fn get_previous_month_total(db: &sqlx::PgPool) -> Result<f64, sqlx::Error> {
+    #[derive(sqlx::FromRow)]
+    struct PreviousTotal {
+        total: Option<rust_decimal::Decimal>,
+    }
+    
+    let result = sqlx::query_as::<_, PreviousTotal>(
+        r#"
+        SELECT SUM(amount) as total
+        FROM asset_snapshots
+        WHERE (snapshot_year, snapshot_month) = (
+            SELECT snapshot_year, snapshot_month 
+            FROM asset_snapshots 
+            WHERE (snapshot_year, snapshot_month) < (
+                SELECT snapshot_year, snapshot_month 
+                FROM asset_snapshots 
+                ORDER BY snapshot_year DESC, snapshot_month DESC 
+                LIMIT 1
+            )
+            ORDER BY snapshot_year DESC, snapshot_month DESC 
+            LIMIT 1
+        )
+        "#
+    )
+    .fetch_one(db)
+    .await?;
+    
+    Ok(result.total.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0))
+}
+
+fn format_rupiah(amount: f64) -> String {
+    let amount_str = format!("{:.0}", amount);
+    let mut result = String::new();
+    let chars: Vec<char> = amount_str.chars().collect();
+    
+    for (i, c) in chars.iter().enumerate() {
+        if i > 0 && (chars.len() - i) % 3 == 0 {
+            result.push('.');
+        }
+        result.push(*c);
+    }
+    
+    result
+}
+
+fn format_telegram_message(data: &serde_json::Value, previous_total: f64) -> String {
+    use chrono_tz::Asia::Jakarta;
+    
+    let total = data["total"].as_f64().unwrap_or(0.0);
+    let total_dividends = data["total_dividends"].as_f64().unwrap_or(0.0);
+    let empty_vec = vec![];
+    let allocations = data["allocations"].as_array().unwrap_or(&empty_vec);
+    
+    let mut message = String::from("📊 <b>Financial Report</b>\n\n");
+    message.push_str(&format!("💰 <b>Total Assets:</b> Rp {}\n", format_rupiah(total)));
+    
+    // Add comparison with previous month
+    if previous_total > 0.0 {
+        let difference = total - previous_total;
+        let percentage_change = (difference / previous_total) * 100.0;
+        
+        if difference > 0.0 {
+            message.push_str(&format!("   📈 <i>+Rp {} ({:+.2}%) from last month</i>\n", format_rupiah(difference), percentage_change));
+        } else if difference < 0.0 {
+            message.push_str(&format!("   📉 <i>Rp {} ({:.2}%) from last month</i>\n", format_rupiah(difference), percentage_change));
+        } else {
+            message.push_str("   ➡️ <i>No change from last month</i>\n");
+        }
+    }
+    
+    message.push_str(&format!("\n💵 <b>Total Dividends:</b> Rp {}\n\n", format_rupiah(total_dividends)));
+    message.push_str("<b>Asset Allocation:</b>\n");
+    
+    for allocation in allocations {
+        let name = allocation["name"].as_str().unwrap_or("");
+        let amount = allocation["amount"].as_f64().unwrap_or(0.0);
+        let percentage = allocation["percentage"].as_f64().unwrap_or(0.0);
+        message.push_str(&format!("• {}: Rp {} ({:.2}%)\n", name, format_rupiah(amount), percentage));
+    }
+    
+    // Get current time in Jakarta timezone (GMT+7)
+    let jakarta_time = chrono::Utc::now().with_timezone(&Jakarta);
+    message.push_str(&format!("\n📅 Generated: {} WIB", jakarta_time.format("%d %B %Y, %H:%M")));
+    
+    message
 }
