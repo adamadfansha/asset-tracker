@@ -22,6 +22,9 @@
               {{ cls.is_active ? 'Active' : 'Inactive' }}
             </div>
           </div>
+          <button @click="deleteClass(cls.id)" class="btn-delete" title="Delete category">
+            🗑️
+          </button>
         </div>
       </div>
     </div>
@@ -56,12 +59,32 @@ export default {
       }
     }
 
+    const deleteClass = async (id) => {
+      if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+        return
+      }
+      
+      try {
+        await axios.delete(`/api/asset-classes/${id}`)
+        await loadAssetClasses()
+        emit('updated')
+        alert('Category successfully deleted!')
+      } catch (error) {
+        if (error.response?.status === 400) {
+          alert('Cannot delete category: There are assets using this category. Please delete or reassign those assets first.')
+        } else {
+          alert('Error: ' + (error.response?.data?.message || error.message))
+        }
+      }
+    }
+
     onMounted(loadAssetClasses)
 
     return {
       assetClasses,
       newClassName,
-      addClass
+      addClass,
+      deleteClass
     }
   }
 }
@@ -151,12 +174,30 @@ export default {
   gap: 16px;
   border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .category-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
   border-color: #2d3748;
+}
+
+.btn-delete {
+  background: #fc8181;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  margin-left: auto;
+}
+
+.btn-delete:hover {
+  background: #f56565;
+  transform: scale(1.1);
 }
 
 .category-icon {

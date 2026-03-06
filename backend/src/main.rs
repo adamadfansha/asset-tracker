@@ -41,6 +41,7 @@ async fn main() {
         .route("/api/health", get(health_check))
         .route("/api/asset-classes", get(get_asset_classes))
         .route("/api/asset-classes", post(create_asset_class))
+        .route("/api/asset-classes/:id", delete(delete_asset_class))
         .route("/api/snapshots", get(get_snapshots))
         .route("/api/snapshots", post(create_snapshot))
         .route("/api/snapshots/bulk", post(bulk_create_snapshot))

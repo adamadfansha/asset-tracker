@@ -40,6 +40,49 @@ pub async fn create_asset_class(
     
     Ok((StatusCode::CREATED, Json(class)))
 }
+pub async fn delete_asset_class(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<i32>
+) -> Result<StatusCode, StatusCode> {
+    // Check if there are any snapshots with non-zero amounts using this asset class
+    let count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM asset_snapshots WHERE asset_class_id = $1 AND amount > 0"
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error checking snapshots: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if count.0 > 0 {
+        eprintln!("Cannot delete asset class with existing non-zero snapshots");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Delete all snapshots with zero amounts for this asset class
+    sqlx::query("DELETE FROM asset_snapshots WHERE asset_class_id = $1 AND amount = 0")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            eprintln!("Error deleting zero snapshots: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Delete the asset class (CASCADE will delete asset_class_categories)
+    sqlx::query("DELETE FROM asset_classes WHERE id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            eprintln!("Error deleting asset class: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
 
 pub async fn get_snapshots(
     State(state): State<Arc<AppState>>
