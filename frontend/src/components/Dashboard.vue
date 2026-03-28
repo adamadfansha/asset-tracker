@@ -37,7 +37,11 @@
       <div class="chart-card half">
         <h2>🎯 Current Asset Allocation</h2>
         <div class="chart-wrapper">
-          <Pie :data="pieChartData" :options="pieChartOptions" />
+          <Doughnut
+            :data="pieChartData"
+            :options="pieChartOptions"
+            :plugins="[centerTextPlugin]"
+          />
         </div>
       </div>
 
@@ -90,10 +94,11 @@
 
 <script>
 import { ref, onMounted, computed } from "vue";
-import { Pie, Line } from "vue-chartjs";
+import { Doughnut, Line } from "vue-chartjs";
 import {
   Chart as ChartJS,
   ArcElement,
+  DoughnutController,
   Tooltip,
   Legend,
   CategoryScale,
@@ -107,6 +112,7 @@ import axios from "axios";
 
 ChartJS.register(
   ArcElement,
+  DoughnutController,
   Tooltip,
   Legend,
   CategoryScale,
@@ -119,13 +125,36 @@ ChartJS.register(
 
 export default {
   name: "Dashboard",
-  components: { Pie, Line },
+  components: { Doughnut, Line },
   setup() {
     const dashboardData = ref({
       total: 0,
       allocations: [],
       total_dividends: 0,
     });
+
+    const centerTextPlugin = {
+      id: "centerText",
+      beforeDraw(chart) {
+        if (!chart.data.datasets.length || !chart.data.datasets[0].data.length)
+          return;
+        const { height, ctx } = chart;
+        ctx.restore();
+        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        const formatted = "Rp " + new Intl.NumberFormat("id-ID").format(total);
+        ctx.font = `700 ${Math.round(height / 14)}px Plus Jakarta Sans`;
+        ctx.fillStyle = "#f0f0f5";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+        const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+        ctx.fillText(formatted, centerX, centerY - 10);
+        ctx.font = `500 ${Math.round(height / 22)}px Plus Jakarta Sans`;
+        ctx.fillStyle = "#8a8a9a";
+        ctx.fillText("Total Assets", centerX, centerY + 16);
+        ctx.save();
+      },
+    };
     const pieChartData = ref({ labels: [], datasets: [] });
     const growthChartData = ref({ labels: [], datasets: [] });
     const historyData = ref([]);
@@ -195,28 +224,29 @@ export default {
     const pieChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: "72%",
       plugins: {
         legend: {
-          position: "right",
+          position: "bottom",
           labels: {
-            padding: 20,
-            font: { size: 14, family: "Inter", weight: "600" },
-            color: "#1a202c",
+            padding: 16,
+            boxWidth: 12,
+            boxHeight: 12,
+            font: { size: 12, family: "Plus Jakarta Sans", weight: "500" },
+            color: "#c0c0cc",
             usePointStyle: true,
             pointStyle: "circle",
             generateLabels: function (chart) {
               const data = chart.data;
               if (data.labels.length && data.datasets.length) {
+                const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
                 return data.labels.map((label, i) => {
                   const value = data.datasets[0].data[i];
-                  const total = data.datasets[0].data.reduce(
-                    (a, b) => a + b,
-                    0,
-                  );
                   const percentage = ((value / total) * 100).toFixed(1);
                   return {
-                    text: `${label} (${percentage}%)`,
+                    text: `${label} ${percentage}%`,
                     fillStyle: data.datasets[0].backgroundColor[i],
+                    fontColor: "#c0c0cc",
                     hidden: false,
                     index: i,
                   };
@@ -227,11 +257,13 @@ export default {
           },
         },
         tooltip: {
-          backgroundColor: "rgba(15, 23, 42, 0.95)",
+          backgroundColor: "rgba(10, 10, 15, 0.95)",
           padding: 16,
-          titleFont: { size: 15, weight: "bold", family: "Inter" },
-          bodyFont: { size: 13, family: "Inter" },
-          borderColor: "rgba(255, 255, 255, 0.2)",
+          titleFont: { size: 14, weight: "bold", family: "Plus Jakarta Sans" },
+          titleColor: "#f0f0f5",
+          bodyFont: { size: 13, family: "Plus Jakarta Sans" },
+          bodyColor: "#c0c0cc",
+          borderColor: "rgba(212, 175, 55, 0.3)",
           borderWidth: 1,
           displayColors: true,
           callbacks: {
@@ -242,7 +274,7 @@ export default {
               const value = context.parsed;
               const total = context.dataset.data.reduce((a, b) => a + b, 0);
               const percentage = ((value / total) * 100).toFixed(2);
-              return `Total: Rp ${new Intl.NumberFormat("id-ID").format(value)} (${percentage}%)`;
+              return `Rp ${new Intl.NumberFormat("id-ID").format(value)} (${percentage}%)`;
             },
           },
         },
@@ -261,11 +293,13 @@ export default {
           display: false,
         },
         tooltip: {
-          backgroundColor: "rgba(26, 32, 44, 0.95)",
+          backgroundColor: "rgba(10, 10, 15, 0.95)",
           padding: 12,
-          titleFont: { size: 14, weight: "bold", family: "Inter" },
-          bodyFont: { size: 13, family: "Inter" },
-          borderColor: "rgba(255, 255, 255, 0.1)",
+          titleFont: { size: 14, weight: "bold", family: "Plus Jakarta Sans" },
+          titleColor: "#f0f0f5",
+          bodyFont: { size: 13, family: "Plus Jakarta Sans" },
+          bodyColor: "#c0c0cc",
+          borderColor: "rgba(212, 175, 55, 0.3)",
           borderWidth: 1,
           callbacks: {
             label: function (context) {
@@ -290,24 +324,26 @@ export default {
       scales: {
         y: {
           beginAtZero: true,
+          border: { color: "rgba(255, 255, 255, 0.06)" },
           grid: {
-            color: "rgba(0, 0, 0, 0.05)",
+            color: "rgba(255, 255, 255, 0.04)",
           },
           ticks: {
             callback: function (value) {
               return "Rp " + (value / 1000000).toFixed(0) + "M";
             },
-            font: { size: 11, family: "Inter" },
-            color: "#4a5568",
+            font: { size: 11, family: "Plus Jakarta Sans" },
+            color: "#8a8a9a",
           },
         },
         x: {
+          border: { color: "rgba(255, 255, 255, 0.06)" },
           grid: {
             display: false,
           },
           ticks: {
-            font: { size: 11, family: "Inter" },
-            color: "#4a5568",
+            font: { size: 11, family: "Plus Jakarta Sans" },
+            color: "#8a8a9a",
           },
         },
       },
@@ -352,16 +388,16 @@ export default {
         // Group assets into categories dynamically
         const groupedData = {};
         const defaultColors = [
-          "#3b82f6",
-          "#8b5cf6",
-          "#f59e0b",
+          "#d4af37",
+          "#60a5fa",
+          "#a78bfa",
+          "#34d399",
           "#f97316",
-          "#10b981",
-          "#ef4444",
-          "#6366f1",
-          "#ec4899",
-          "#14b8a6",
-          "#84cc16",
+          "#f87171",
+          "#38bdf8",
+          "#e879f9",
+          "#2dd4bf",
+          "#a3e635",
         ];
 
         response.data.allocations.forEach((item) => {
@@ -395,11 +431,13 @@ export default {
             {
               data: data,
               backgroundColor: colors,
-              borderWidth: 4,
-              borderColor: "#1a202c",
-              hoverOffset: 20,
-              hoverBorderWidth: 5,
-              hoverBorderColor: "#fff",
+              borderWidth: 3,
+              borderColor: "#0a0a0f",
+              hoverOffset: 8,
+              hoverBorderWidth: 2,
+              hoverBorderColor: "rgba(212, 175, 55, 0.5)",
+              borderRadius: 4,
+              spacing: 3,
             },
           ],
         };
@@ -419,15 +457,15 @@ export default {
             {
               label: "Total Assets",
               data: response.data.map((h) => h.total),
-              borderColor: "#2d3748",
-              backgroundColor: "rgba(45, 55, 72, 0.1)",
+              borderColor: "#d4af37",
+              backgroundColor: "rgba(212, 175, 55, 0.08)",
               tension: 0.4,
               fill: true,
-              borderWidth: 3,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              pointBackgroundColor: "#2d3748",
-              pointBorderColor: "#fff",
+              borderWidth: 2.5,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              pointBackgroundColor: "#d4af37",
+              pointBorderColor: "#0a0a0f",
               pointBorderWidth: 2,
               pointHoverBorderWidth: 3,
             },
@@ -449,6 +487,7 @@ export default {
       growthChartData,
       pieChartOptions,
       growthChartOptions,
+      centerTextPlugin,
       monthlyGrowth,
       growthClass,
       groupedAllocations,
@@ -459,212 +498,199 @@ export default {
 </script>
 
 <style scoped>
-.dashboard {
-  padding: 0;
-}
-
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
 }
-
 .stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  color: white;
-  padding: 30px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  padding: 28px;
   border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
-  gap: 24px;
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  gap: 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
-
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
 .stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+  border-color: var(--border-color);
 }
-
+.stat-card:hover::before {
+  opacity: 0.5;
+}
 .stat-card.gradient-dark {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  box-shadow: 0 10px 40px rgba(30, 41, 59, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(212, 175, 55, 0.08),
+    rgba(18, 18, 26, 0.95)
+  );
 }
-
 .stat-card.gradient-gold {
-  background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
-  box-shadow: 0 10px 40px rgba(146, 64, 14, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(212, 175, 55, 0.15),
+    rgba(18, 18, 26, 0.95)
+  );
 }
-
 .stat-icon {
-  font-size: 52px;
-  opacity: 0.95;
+  font-size: 44px;
 }
-
 .stat-content {
   flex: 1;
 }
-
 .stat-content h3 {
-  margin: 0 0 10px 0;
-  font-size: 13px;
-  opacity: 0.85;
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
 }
-
 .stat-content .value {
-  font-size: 26px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: #fbbf24;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
-
 .growth {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
-
 .growth.positive {
-  color: #68d391;
+  color: var(--accent-green);
 }
-
 .growth.negative {
-  color: #fc8181;
+  color: var(--accent-red);
 }
-
 .chart-card {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 30px;
+  background: var(--bg-card);
+  padding: 28px;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  margin-bottom: 20px;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
 }
-
 .chart-card h2 {
-  margin: 0 0 24px 0;
-  font-size: 20px;
-  color: #1a202c;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: var(--text-primary);
   font-weight: 700;
 }
-
 .chart-wrapper {
   position: relative;
-  height: 400px;
+  height: 380px;
 }
-
 .charts-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 20px;
+  align-items: start;
 }
-
+.charts-row .chart-card.half {
+  display: flex;
+  flex-direction: column;
+}
+.charts-row .chart-card.half .chart-wrapper {
+  flex: 1;
+}
+.charts-row .chart-card.half .allocation-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .chart-card.half .chart-wrapper {
-  height: 350px;
+  height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
+.chart-card.half .chart-wrapper canvas {
+  max-height: 100%;
+  max-width: 100%;
+}
 .allocation-list {
-  padding: 10px 0;
+  padding: 8px 0;
 }
-
 .allocation-group {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
-
-.allocation-item {
-  margin-bottom: 8px;
-}
-
-.allocation-item.main {
-  margin-bottom: 12px;
-}
-
 .allocation-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
-
 .allocation-name {
   font-weight: 700;
-  color: #1a202c;
-  font-size: 15px;
+  color: var(--text-primary);
+  font-size: 14px;
 }
-
 .allocation-percentage {
   font-weight: 700;
-  color: #1a202c;
-  font-size: 15px;
+  color: var(--gold);
+  font-size: 14px;
 }
-
 .allocation-bar {
-  height: 12px;
-  background: #e2e8f0;
-  border-radius: 6px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
   overflow: hidden;
   margin-bottom: 6px;
 }
-
 .allocation-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1a202c 0%, #2d3748 100%);
-  border-radius: 6px;
-  transition: width 0.5s ease;
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .allocation-amount {
-  font-size: 14px;
-  color: #4a5568;
+  font-size: 13px;
+  color: var(--text-secondary);
   font-weight: 600;
 }
-
 .allocation-breakdown {
-  margin-left: 20px;
-  padding-left: 16px;
-  border-left: 3px solid #e2e8f0;
-  margin-top: 12px;
+  margin-left: 16px;
+  padding-left: 14px;
+  border-left: 2px solid rgba(212, 175, 55, 0.15);
+  margin-top: 10px;
 }
-
 .allocation-sub-item {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  font-size: 13px;
-  color: #718096;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
-
 .sub-name {
   font-weight: 500;
 }
-
 .sub-amount {
   font-weight: 600;
-  color: #4a5568;
+  color: var(--text-secondary);
 }
-
 @media (max-width: 768px) {
   .charts-row {
     grid-template-columns: 1fr;
   }
-
-  .stat-card {
-    padding: 24px;
-  }
-
-  .stat-icon {
-    font-size: 40px;
-  }
-
   .stat-content .value {
-    font-size: 22px;
+    font-size: 20px;
   }
 }
 </style>

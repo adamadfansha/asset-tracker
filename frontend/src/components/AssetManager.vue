@@ -299,19 +299,19 @@ export default {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-card);
   padding: 30px;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
 }
 
 .card h2 {
   margin: 0 0 24px 0;
   font-size: 20px;
-  color: #1a202c;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
@@ -330,26 +330,28 @@ export default {
 .form-group label {
   margin-bottom: 8px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-secondary);
   font-size: 14px;
   letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .form-group input,
 .form-group select {
   padding: 12px 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-size: 14px;
   transition: all 0.3s ease;
-  background: white;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #2d3748;
-  box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .asset-inputs {
@@ -358,9 +360,9 @@ export default {
   gap: 20px;
   margin: 24px 0;
   padding: 24px;
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  background: var(--glass-bg);
   border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
 }
 
 .btn {
@@ -375,25 +377,31 @@ export default {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(26, 32, 44, 0.3);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(26, 32, 44, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  color: var(--text-secondary);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
 }
 
 .btn-secondary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-hover);
 }
 
 .button-group {
@@ -413,12 +421,12 @@ export default {
 }
 
 .btn-icon:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(212, 175, 55, 0.1);
   transform: scale(1.1);
 }
 
 .btn-edit:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(212, 175, 55, 0.15);
 }
 
 .text-center {
@@ -436,8 +444,7 @@ table {
 }
 
 thead {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  color: white;
+  background: rgba(212, 175, 55, 0.05);
 }
 
 th {
@@ -447,16 +454,18 @@ th {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--gold);
 }
 
 td {
   padding: 14px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--glass-border);
   font-size: 13px;
+  color: var(--text-primary);
 }
 
 tbody tr:hover {
-  background: rgba(237, 242, 247, 0.5);
+  background: rgba(212, 175, 55, 0.04);
 }
 
 .text-right {
@@ -465,13 +474,13 @@ tbody tr:hover {
 
 .date-col {
   font-weight: 700;
-  color: #1a202c;
+  color: var(--text-primary);
 }
 
 .total-col {
   font-weight: 700;
-  background: rgba(237, 242, 247, 0.5);
-  color: #2d3748;
+  background: rgba(212, 175, 55, 0.05);
+  color: var(--gold-light);
 }
 
 .change-col {
@@ -479,11 +488,11 @@ tbody tr:hover {
 }
 
 .change-col.positive {
-  color: #38a169;
+  color: var(--accent-green);
 }
 
 .change-col.negative {
-  color: #e53e3e;
+  color: var(--accent-red);
 }
 
 @media (max-width: 768px) {

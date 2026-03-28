@@ -110,23 +110,23 @@ export default {
 
 <style scoped>
 .card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-card);
   padding: 30px;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
 }
 .card h2 {
   margin: 0 0 24px 0;
   font-size: 20px;
-  color: #1a202c;
+  color: var(--text-primary);
   font-weight: 700;
 }
 .subtitle {
   margin: -16px 0 24px 0;
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 .form-group {
@@ -136,22 +136,25 @@ export default {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-secondary);
   font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .form-group input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-size: 14px;
   transition: all 0.3s ease;
-  background: white;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 .form-group input:focus {
   outline: none;
-  border-color: #2d3748;
-  box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 .btn {
   padding: 14px 28px;
@@ -163,13 +166,13 @@ export default {
   transition: all 0.3s ease;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(26, 32, 44, 0.3);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(26, 32, 44, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
 .categories-grid {
   display: grid;
@@ -177,19 +180,19 @@ export default {
   gap: 20px;
 }
 .category-card {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  background: rgba(212, 175, 55, 0.04);
   padding: 24px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   transition: all 0.3s ease;
 }
 .category-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  border-color: #2d3748;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-hover);
 }
 .category-icon {
   font-size: 32px;
@@ -200,17 +203,17 @@ export default {
 .category-name {
   font-size: 16px;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 .category-target {
   font-size: 12px;
   font-weight: 600;
-  color: #718096;
+  color: var(--text-muted);
 }
 .btn-delete {
-  background: #fc8181;
-  color: white;
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--accent-red);
   border: none;
   border-radius: 8px;
   padding: 8px 12px;
@@ -220,7 +223,7 @@ export default {
   margin-left: auto;
 }
 .btn-delete:hover {
-  background: #f56565;
+  background: rgba(248, 113, 113, 0.25);
   transform: scale(1.1);
 }
 @media (max-width: 768px) {

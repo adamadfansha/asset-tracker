@@ -215,32 +215,32 @@ export default {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-card);
   padding: 30px;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
 }
 
 .card h2 {
   margin: 0 0 8px 0;
   font-size: 20px;
-  color: #1a202c;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .card h3 {
   margin: 0 0 16px 0;
   font-size: 18px;
-  color: #1a202c;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .subtitle {
   margin: 0 0 24px 0;
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -259,27 +259,31 @@ export default {
 .input-group label {
   margin-bottom: 8px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-secondary);
   font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .input-field {
   padding: 14px 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-size: 15px;
   transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .hint {
   margin-top: 6px;
-  color: #718096;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -294,7 +298,7 @@ export default {
   gap: 10px;
   cursor: pointer;
   font-size: 14px;
-  color: #2d3748;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -302,6 +306,7 @@ export default {
   width: 20px;
   height: 20px;
   cursor: pointer;
+  accent-color: var(--gold);
 }
 
 .checkbox-label.disabled {
@@ -316,7 +321,7 @@ export default {
 .hint-warning {
   margin-top: 6px;
   margin-left: 30px;
-  color: #e53e3e;
+  color: var(--accent-red);
   font-size: 12px;
   font-style: italic;
 }
@@ -332,25 +337,25 @@ export default {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.3);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 100%);
+  color: #0a0a0f;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
 }
 
 .btn-success:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
 
 .btn:disabled {
@@ -361,21 +366,23 @@ export default {
 .last-sent {
   margin-top: 16px;
   padding: 12px;
-  background: #f7fafc;
+  background: var(--glass-bg);
   border-radius: 8px;
   font-size: 13px;
-  color: #4a5568;
+  color: var(--text-secondary);
   text-align: center;
+  border: 1px solid var(--glass-border);
 }
 
 .info-card {
-  background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+  background: rgba(212, 175, 55, 0.04);
+  border: 1px solid var(--border-color);
 }
 
 .info-card ol {
   margin: 0;
   padding-left: 20px;
-  color: #2d3748;
+  color: var(--text-secondary);
   line-height: 1.8;
 }
 
@@ -384,12 +391,12 @@ export default {
 }
 
 .info-card code {
-  background: white;
+  background: rgba(212, 175, 55, 0.1);
   padding: 2px 8px;
   border-radius: 4px;
   font-family: "Courier New", monospace;
   font-size: 13px;
-  color: #e53e3e;
+  color: var(--gold-light);
 }
 
 @media (max-width: 768px) {

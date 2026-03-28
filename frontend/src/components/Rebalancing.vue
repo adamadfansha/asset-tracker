@@ -2,13 +2,15 @@
   <div class="rebalancing">
     <div class="card">
       <h2>💰 Investment Rebalancing Calculator</h2>
-      <p class="subtitle">Set your target allocation and get smart investment recommendations</p>
-      
+      <p class="subtitle">
+        Set your target allocation and get smart investment recommendations
+      </p>
+
       <div class="calculator-section">
         <div class="input-group">
           <label>💵 Amount to Invest</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             :value="formatInputValue(additionalAmount)"
             @input="handleAmountInput"
             @blur="handleAmountBlur"
@@ -16,8 +18,12 @@
             class="amount-input"
           />
         </div>
-        
-        <button @click="calculateRebalancing" class="btn btn-primary btn-calculate" :disabled="!additionalAmount">
+
+        <button
+          @click="calculateRebalancing"
+          class="btn btn-primary btn-calculate"
+          :disabled="!additionalAmount"
+        >
           🎯 Calculate Recommendations
         </button>
       </div>
@@ -26,19 +32,25 @@
     <!-- Recommendations Result -->
     <div v-if="recommendations" class="card recommendations-card">
       <h2>📊 Investment Recommendations</h2>
-      
+
       <div class="summary-cards">
         <div class="summary-card">
           <div class="summary-label">Current Total Assets</div>
-          <div class="summary-value">Rp {{ formatNumber(recommendations.current_total) }}</div>
+          <div class="summary-value">
+            Rp {{ formatNumber(recommendations.current_total) }}
+          </div>
         </div>
         <div class="summary-card highlight">
           <div class="summary-label">Amount to Invest</div>
-          <div class="summary-value">Rp {{ formatNumber(recommendations.additional_amount) }}</div>
+          <div class="summary-value">
+            Rp {{ formatNumber(recommendations.additional_amount) }}
+          </div>
         </div>
         <div class="summary-card">
           <div class="summary-label">New Total Assets</div>
-          <div class="summary-value">Rp {{ formatNumber(recommendations.new_total) }}</div>
+          <div class="summary-value">
+            Rp {{ formatNumber(recommendations.new_total) }}
+          </div>
         </div>
       </div>
 
@@ -55,18 +67,35 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="rec in recommendations.recommendations" :key="rec.asset_class">
+            <template
+              v-for="rec in recommendations.recommendations"
+              :key="rec.asset_class"
+            >
               <tr>
                 <td class="asset-name">
                   {{ rec.asset_class }}
-                  <span v-if="rec.breakdown" class="breakdown-hint" @click="toggleBreakdown(rec.asset_class)">
-                    {{ expandedBreakdowns[rec.asset_class] ? '▼' : '▶' }} Details
+                  <span
+                    v-if="rec.breakdown"
+                    class="breakdown-hint"
+                    @click="toggleBreakdown(rec.asset_class)"
+                  >
+                    {{ expandedBreakdowns[rec.asset_class] ? "▼" : "▶" }}
+                    Details
                   </span>
                 </td>
-                <td class="text-right">{{ rec.target_percentage.toFixed(2) }}%</td>
-                <td class="text-right">Rp {{ formatNumber(rec.current_amount) }}</td>
-                <td class="text-right">Rp {{ formatNumber(rec.target_amount) }}</td>
-                <td class="text-right" :class="getDifferenceClass(rec.difference)">
+                <td class="text-right">
+                  {{ rec.target_percentage.toFixed(2) }}%
+                </td>
+                <td class="text-right">
+                  Rp {{ formatNumber(rec.current_amount) }}
+                </td>
+                <td class="text-right">
+                  Rp {{ formatNumber(rec.target_amount) }}
+                </td>
+                <td
+                  class="text-right"
+                  :class="getDifferenceClass(rec.difference)"
+                >
                   {{ formatDifference(rec.difference) }}
                 </td>
                 <td class="text-right suggested-col highlight-amount">
@@ -74,13 +103,21 @@
                 </td>
               </tr>
               <!-- Breakdown row -->
-              <tr v-if="rec.breakdown && expandedBreakdowns[rec.asset_class]" 
-                  class="breakdown-row">
+              <tr
+                v-if="rec.breakdown && expandedBreakdowns[rec.asset_class]"
+                class="breakdown-row"
+              >
                 <td colspan="6" class="breakdown-content">
                   <div class="breakdown-items">
-                    <div v-for="item in rec.breakdown" :key="item.name" class="breakdown-item">
+                    <div
+                      v-for="item in rec.breakdown"
+                      :key="item.name"
+                      class="breakdown-item"
+                    >
                       <span class="breakdown-name">{{ item.name }}:</span>
-                      <span class="breakdown-amount">Rp {{ formatNumber(item.amount) }}</span>
+                      <span class="breakdown-amount"
+                        >Rp {{ formatNumber(item.amount) }}</span
+                      >
                     </div>
                   </div>
                 </td>
@@ -89,7 +126,9 @@
           </tbody>
           <tfoot>
             <tr class="total-row">
-              <td colspan="5" class="text-right"><strong>Total to Allocate:</strong></td>
+              <td colspan="5" class="text-right">
+                <strong>Total to Allocate:</strong>
+              </td>
               <td class="text-right suggested-col">
                 <strong>Rp {{ formatNumber(getTotalSuggested()) }}</strong>
               </td>
@@ -102,16 +141,18 @@
     <!-- Preferences Settings -->
     <div class="card">
       <h2>⚙️ Allocation Preferences</h2>
-      <p class="subtitle">Set your target allocation percentages (must total 100%)</p>
-      
+      <p class="subtitle">
+        Set your target allocation percentages (must total 100%)
+      </p>
+
       <div class="preferences-grid">
         <div v-for="pref in preferences" :key="pref.id" class="preference-item">
           <label>{{ pref.category_name }}</label>
           <div class="percentage-input">
-            <input 
-              type="number" 
-              v-model.number="pref.target_percentage" 
-              min="0" 
+            <input
+              type="number"
+              v-model.number="pref.target_percentage"
+              min="0"
               max="100"
               step="0.1"
             />
@@ -120,13 +161,20 @@
         </div>
       </div>
 
-      <div class="total-percentage" :class="{ 'valid': isValidTotal, 'invalid': !isValidTotal }">
+      <div
+        class="total-percentage"
+        :class="{ valid: isValidTotal, invalid: !isValidTotal }"
+      >
         Total: {{ getTotalPercentage().toFixed(2) }}%
         <span v-if="isValidTotal" class="status-icon">✓</span>
         <span v-else class="status-icon">✗</span>
       </div>
 
-      <button @click="savePreferences" class="btn btn-primary" :disabled="!isValidTotal">
+      <button
+        @click="savePreferences"
+        class="btn btn-primary"
+        :disabled="!isValidTotal"
+      >
         💾 Save Preferences
       </button>
     </div>
@@ -134,8 +182,10 @@
     <!-- Asset Class Category Mapping -->
     <div class="card">
       <h2>🔗 Asset Class Category Mapping</h2>
-      <p class="subtitle">Assign each asset class to a category for rebalancing calculations</p>
-      
+      <p class="subtitle">
+        Assign each asset class to a category for rebalancing calculations
+      </p>
+
       <div class="mapping-table">
         <table>
           <thead>
@@ -146,17 +196,27 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="mapping in assetClassMappings" :key="mapping.asset_class_id">
+            <tr
+              v-for="mapping in assetClassMappings"
+              :key="mapping.asset_class_id"
+            >
               <td class="asset-name">{{ mapping.asset_class_name }}</td>
               <td>
                 <select v-model="mapping.category_name" class="category-select">
-                  <option v-for="cat in availableCategories" :key="cat.category_name" :value="cat.category_name">
+                  <option
+                    v-for="cat in availableCategories"
+                    :key="cat.category_name"
+                    :value="cat.category_name"
+                  >
                     {{ cat.category_name }}
                   </option>
                 </select>
               </td>
               <td>
-                <button @click="updateMapping(mapping)" class="btn-small btn-primary">
+                <button
+                  @click="updateMapping(mapping)"
+                  class="btn-small btn-primary"
+                >
                   Save
                 </button>
               </td>
@@ -169,157 +229,167 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed, onMounted } from "vue";
+import axios from "axios";
 
 export default {
-  name: 'Rebalancing',
+  name: "Rebalancing",
   setup() {
-    const preferences = ref([])
-    const assetClassMappings = ref([])
-    const additionalAmount = ref(0)
-    const recommendations = ref(null)
-    const expandedBreakdowns = ref({})
-    const availableCategories = ref([])
+    const preferences = ref([]);
+    const assetClassMappings = ref([]);
+    const additionalAmount = ref(0);
+    const recommendations = ref(null);
+    const expandedBreakdowns = ref({});
+    const availableCategories = ref([]);
 
     const toggleBreakdown = (assetClass) => {
-      expandedBreakdowns.value[assetClass] = !expandedBreakdowns.value[assetClass]
-    }
+      expandedBreakdowns.value[assetClass] =
+        !expandedBreakdowns.value[assetClass];
+    };
 
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
-    }
+      return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(num);
+    };
 
     const formatInputValue = (value) => {
-      if (!value || value === 0) return ''
-      return new Intl.NumberFormat('id-ID').format(value)
-    }
+      if (!value || value === 0) return "";
+      return new Intl.NumberFormat("id-ID").format(value);
+    };
 
     const handleAmountInput = (event) => {
-      let value = event.target.value.replace(/[^\d]/g, '')
-      const numValue = value === '' ? 0 : parseInt(value)
-      additionalAmount.value = numValue
-      
-      if (value !== '') {
-        event.target.value = new Intl.NumberFormat('id-ID').format(numValue)
+      let value = event.target.value.replace(/[^\d]/g, "");
+      const numValue = value === "" ? 0 : parseInt(value);
+      additionalAmount.value = numValue;
+
+      if (value !== "") {
+        event.target.value = new Intl.NumberFormat("id-ID").format(numValue);
       }
-    }
+    };
 
     const handleAmountBlur = () => {
-      if (additionalAmount.value === 0 || additionalAmount.value === '') {
-        additionalAmount.value = 0
+      if (additionalAmount.value === 0 || additionalAmount.value === "") {
+        additionalAmount.value = 0;
       }
-    }
+    };
 
     const formatDifference = (diff) => {
-      const formatted = formatNumber(Math.abs(diff))
-      return diff >= 0 ? `+Rp ${formatted}` : `-Rp ${formatted}`
-    }
+      const formatted = formatNumber(Math.abs(diff));
+      return diff >= 0 ? `+Rp ${formatted}` : `-Rp ${formatted}`;
+    };
 
     const getDifferenceClass = (diff) => {
-      if (diff > 0) return 'positive'
-      if (diff < 0) return 'negative'
-      return ''
-    }
+      if (diff > 0) return "positive";
+      if (diff < 0) return "negative";
+      return "";
+    };
 
     const getTotalPercentage = () => {
-      return preferences.value.reduce((sum, pref) => sum + (pref.target_percentage || 0), 0)
-    }
+      return preferences.value.reduce(
+        (sum, pref) => sum + (pref.target_percentage || 0),
+        0,
+      );
+    };
 
     const isValidTotal = computed(() => {
-      const total = getTotalPercentage()
-      return Math.abs(total - 100) < 0.01
-    })
+      const total = getTotalPercentage();
+      return Math.abs(total - 100) < 0.01;
+    });
 
     const getTotalSuggested = () => {
-      if (!recommendations.value) return 0
-      return recommendations.value.recommendations.reduce((sum, rec) => sum + rec.suggested_allocation, 0)
-    }
+      if (!recommendations.value) return 0;
+      return recommendations.value.recommendations.reduce(
+        (sum, rec) => sum + rec.suggested_allocation,
+        0,
+      );
+    };
 
     const loadPreferences = async () => {
       try {
-        const response = await axios.get('/api/allocation-preferences')
-        preferences.value = response.data
+        const response = await axios.get("/api/allocation-preferences");
+        preferences.value = response.data;
       } catch (error) {
-        console.error('Error loading preferences:', error)
-        alert('Failed to load preferences')
+        console.error("Error loading preferences:", error);
+        alert("Failed to load preferences");
       }
-    }
+    };
 
     const loadAssetClassMappings = async () => {
       try {
-        const response = await axios.get('/api/asset-class-categories')
-        assetClassMappings.value = response.data
+        const response = await axios.get("/api/asset-class-categories");
+        assetClassMappings.value = response.data;
       } catch (error) {
-        console.error('Error loading mappings:', error)
-        alert('Failed to load asset class mappings')
+        console.error("Error loading mappings:", error);
+        alert("Failed to load asset class mappings");
       }
-    }
+    };
 
     const loadAvailableCategories = async () => {
       try {
-        const response = await axios.get('/api/categories')
-        availableCategories.value = response.data
+        const response = await axios.get("/api/categories");
+        availableCategories.value = response.data;
       } catch (error) {
-        console.error('Error loading categories:', error)
+        console.error("Error loading categories:", error);
       }
-    }
+    };
 
     const updateMapping = async (mapping) => {
       try {
-        await axios.post('/api/asset-class-categories', {
+        await axios.post("/api/asset-class-categories", {
           asset_class_id: mapping.asset_class_id,
-          category_name: mapping.category_name
-        })
-        alert(`${mapping.asset_class_name} mapped to ${mapping.category_name}`)
+          category_name: mapping.category_name,
+        });
+        alert(`${mapping.asset_class_name} mapped to ${mapping.category_name}`);
       } catch (error) {
-        console.error('Error updating mapping:', error)
-        alert('Failed to update mapping')
+        console.error("Error updating mapping:", error);
+        alert("Failed to update mapping");
       }
-    }
+    };
 
     const savePreferences = async () => {
       if (!isValidTotal.value) {
-        alert('Total percentage must equal 100%')
-        return
+        alert("Total percentage must equal 100%");
+        return;
       }
 
       try {
-        const payload = preferences.value.map(p => ({
+        const payload = preferences.value.map((p) => ({
           category_name: p.category_name,
-          target_percentage: p.target_percentage
-        }))
-        
-        await axios.post('/api/allocation-preferences', payload)
-        alert('Preferences saved successfully!')
+          target_percentage: p.target_percentage,
+        }));
+
+        await axios.post("/api/allocation-preferences", payload);
+        alert("Preferences saved successfully!");
       } catch (error) {
-        console.error('Error saving preferences:', error)
-        alert('Failed to save preferences')
+        console.error("Error saving preferences:", error);
+        alert("Failed to save preferences");
       }
-    }
+    };
 
     const calculateRebalancing = async () => {
       if (!additionalAmount.value || additionalAmount.value <= 0) {
-        alert('Please enter a valid amount to invest')
-        return
+        alert("Please enter a valid amount to invest");
+        return;
       }
 
       try {
-        const response = await axios.post('/api/rebalancing/calculate', {
-          additional_amount: additionalAmount.value
-        })
-        recommendations.value = response.data
+        const response = await axios.post("/api/rebalancing/calculate", {
+          additional_amount: additionalAmount.value,
+        });
+        recommendations.value = response.data;
       } catch (error) {
-        console.error('Error calculating rebalancing:', error)
-        alert('Failed to calculate recommendations')
+        console.error("Error calculating rebalancing:", error);
+        alert("Failed to calculate recommendations");
       }
-    }
+    };
 
     onMounted(async () => {
-      await loadPreferences()
-      await loadAssetClassMappings()
-      await loadAvailableCategories()
-    })
+      await loadPreferences();
+      await loadAssetClassMappings();
+      await loadAvailableCategories();
+    });
 
     return {
       preferences,
@@ -340,10 +410,10 @@ export default {
       toggleBreakdown,
       updateMapping,
       savePreferences,
-      calculateRebalancing
-    }
-  }
-}
+      calculateRebalancing,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -352,25 +422,25 @@ export default {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--bg-card);
   padding: 30px;
   border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   margin-bottom: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(10px);
 }
 
 .card h2 {
   margin: 0 0 8px 0;
   font-size: 20px;
-  color: #1a202c;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .subtitle {
   margin: 0 0 24px 0;
-  color: #718096;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -389,23 +459,27 @@ export default {
 .input-group label {
   margin-bottom: 8px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-secondary);
   font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .amount-input {
   padding: 14px 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .amount-input:focus {
   outline: none;
-  border-color: #48bb78;
-  box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .btn {
@@ -419,14 +493,14 @@ export default {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
 }
 
 .btn-primary:disabled {
@@ -439,8 +513,8 @@ export default {
 }
 
 .recommendations-card {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border: 2px solid #48bb78;
+  background: rgba(212, 175, 55, 0.04);
+  border: 1px solid var(--border-color);
 }
 
 .summary-cards {
@@ -451,15 +525,17 @@ export default {
 }
 
 .summary-card {
-  background: white;
+  background: var(--glass-bg);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
 }
 
 .summary-card.highlight {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
+  border: none;
 }
 
 .summary-label {
@@ -468,48 +544,61 @@ export default {
   letter-spacing: 0.5px;
   margin-bottom: 8px;
   opacity: 0.8;
+  color: var(--text-secondary);
+}
+
+.summary-card.highlight .summary-label {
+  color: rgba(10, 10, 15, 0.7);
 }
 
 .summary-value {
   font-size: 20px;
   font-weight: 700;
+  color: var(--text-primary);
+}
+
+.summary-card.highlight .summary-value {
+  color: #0a0a0f;
 }
 
 .recommendations-table {
   overflow-x: auto;
-  background: white;
+  background: var(--glass-bg);
   border-radius: 12px;
-  padding: 16px;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  table-layout: auto;
 }
 
 thead {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  color: white;
+  background: rgba(212, 175, 55, 0.05);
 }
 
 th {
-  padding: 12px 16px;
+  padding: 16px 20px;
   text-align: left;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  color: var(--gold);
+  white-space: nowrap;
 }
 
 td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 13px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 14px;
+  color: var(--text-primary);
 }
 
 tbody tr:hover {
-  background: rgba(237, 242, 247, 0.5);
+  background: rgba(212, 175, 55, 0.04);
 }
 
 .text-right {
@@ -518,23 +607,24 @@ tbody tr:hover {
 
 .asset-name {
   font-weight: 700;
-  color: #1a202c;
+  color: var(--text-primary);
 }
 
 .breakdown-hint {
   margin-left: 8px;
   font-size: 11px;
-  color: #4299e1;
+  color: var(--gold);
   cursor: pointer;
   font-weight: 500;
 }
 
 .breakdown-hint:hover {
   text-decoration: underline;
+  color: var(--gold-light);
 }
 
 .breakdown-row {
-  background: #f7fafc;
+  background: rgba(212, 175, 55, 0.02);
 }
 
 .breakdown-content {
@@ -552,45 +642,45 @@ tbody tr:hover {
   gap: 8px;
   align-items: center;
   padding: 8px 16px;
-  background: white;
+  background: var(--glass-bg);
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
 }
 
 .breakdown-name {
   font-weight: 600;
-  color: #4a5568;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .breakdown-amount {
   font-weight: 700;
-  color: #2d3748;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
 .positive {
-  color: #38a169;
+  color: var(--accent-green);
   font-weight: 600;
 }
 
 .negative {
-  color: #e53e3e;
+  color: var(--accent-red);
   font-weight: 600;
 }
 
 .suggested-col {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
 }
 
 .highlight-amount {
   font-weight: 700;
-  color: white;
+  color: #0a0a0f;
   font-size: 14px;
 }
 
 .total-row {
-  background: #f7fafc;
+  background: rgba(212, 175, 55, 0.05);
   font-size: 14px;
 }
 
@@ -614,8 +704,10 @@ tbody tr:hover {
 .preference-item label {
   margin-bottom: 8px;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-secondary);
   font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .percentage-input {
@@ -625,17 +717,19 @@ tbody tr:hover {
 .percentage-input input {
   width: 100%;
   padding: 12px 40px 12px 16px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .percentage-input input:focus {
   outline: none;
-  border-color: #2d3748;
-  box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .percentage-symbol {
@@ -644,7 +738,7 @@ tbody tr:hover {
   top: 50%;
   transform: translateY(-50%);
   font-weight: 700;
-  color: #718096;
+  color: var(--text-muted);
 }
 
 .total-percentage {
@@ -661,13 +755,17 @@ tbody tr:hover {
 }
 
 .total-percentage.valid {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
 }
 
 .total-percentage.invalid {
-  background: linear-gradient(135deg, #fc8181 0%, #e53e3e 100%);
-  color: white;
+  background: linear-gradient(
+    135deg,
+    rgba(248, 113, 113, 0.3) 0%,
+    rgba(248, 113, 113, 0.15) 100%
+  );
+  color: var(--accent-red);
 }
 
 .status-icon {
@@ -676,6 +774,10 @@ tbody tr:hover {
 
 .mapping-table {
   overflow-x: auto;
+  background: var(--glass-bg);
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
 }
 
 .mapping-table table {
@@ -684,41 +786,46 @@ tbody tr:hover {
 }
 
 .mapping-table thead {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  color: white;
+  background: rgba(212, 175, 55, 0.05);
 }
 
 .mapping-table th {
-  padding: 12px 16px;
+  padding: 16px 20px;
   text-align: left;
   font-weight: 700;
   font-size: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--gold);
 }
 
 .mapping-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: 14px;
 }
 
 .mapping-table tbody tr:hover {
-  background: rgba(237, 242, 247, 0.5);
+  background: rgba(212, 175, 55, 0.04);
 }
 
 .category-select {
   padding: 8px 12px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   min-width: 200px;
   transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
 }
 
 .category-select:focus {
   outline: none;
-  border-color: #48bb78;
-  box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .btn-small {
@@ -732,28 +839,28 @@ tbody tr:hover {
 }
 
 .btn-small.btn-primary {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #0a0a0f;
 }
 
 .btn-small.btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
 }
 
 @media (max-width: 768px) {
   .calculator-section {
     flex-direction: column;
   }
-  
+
   .btn-calculate {
     width: 100%;
   }
-  
+
   .summary-cards {
     grid-template-columns: 1fr;
   }
-  
+
   .preferences-grid {
     grid-template-columns: 1fr;
   }

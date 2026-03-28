@@ -2,29 +2,57 @@
   <div id="app">
     <div class="header">
       <h1>💎 Wealth Portfolio Tracker</h1>
-      <p>Monitor and grow your financial assets with precision</p>
+      <p>Precision wealth management at your fingertips</p>
     </div>
 
     <div class="tabs">
-      <button class="tab" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'dashboard' }"
+        @click="activeTab = 'dashboard'"
+      >
         📊 Dashboard
       </button>
-      <button class="tab" :class="{ active: activeTab === 'assets' }" @click="activeTab = 'assets'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'assets' }"
+        @click="activeTab = 'assets'"
+      >
         💰 Assets
       </button>
-      <button class="tab" :class="{ active: activeTab === 'dividends' }" @click="activeTab = 'dividends'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'dividends' }"
+        @click="activeTab = 'dividends'"
+      >
         💵 Dividends
       </button>
-      <button class="tab" :class="{ active: activeTab === 'rebalancing' }" @click="activeTab = 'rebalancing'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'rebalancing' }"
+        @click="activeTab = 'rebalancing'"
+      >
         🎯 Rebalancing
       </button>
-      <button class="tab" :class="{ active: activeTab === 'telegram' }" @click="activeTab = 'telegram'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'telegram' }"
+        @click="activeTab = 'telegram'"
+      >
         📱 Telegram
       </button>
-      <button class="tab" :class="{ active: activeTab === 'classes' }" @click="activeTab = 'classes'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'classes' }"
+        @click="activeTab = 'classes'"
+      >
         🏷️ Asset Class
       </button>
-      <button class="tab" :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'categories' }"
+        @click="activeTab = 'categories'"
+      >
         📂 Categories
       </button>
     </div>
@@ -60,17 +88,17 @@
 </template>
 
 <script>
-import { ref } from 'vue'
-import Dashboard from './components/Dashboard.vue'
-import AssetManager from './components/AssetManager.vue'
-import DividendTracker from './components/DividendTracker.vue'
-import Rebalancing from './components/Rebalancing.vue'
-import TelegramSettings from './components/TelegramSettings.vue'
-import AssetClassManager from './components/AssetClassManager.vue'
-import CategoryManager from './components/CategoryManager.vue'
+import { ref } from "vue";
+import Dashboard from "./components/Dashboard.vue";
+import AssetManager from "./components/AssetManager.vue";
+import DividendTracker from "./components/DividendTracker.vue";
+import Rebalancing from "./components/Rebalancing.vue";
+import TelegramSettings from "./components/TelegramSettings.vue";
+import AssetClassManager from "./components/AssetClassManager.vue";
+import CategoryManager from "./components/CategoryManager.vue";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
     Dashboard,
     AssetManager,
@@ -78,21 +106,21 @@ export default {
     Rebalancing,
     TelegramSettings,
     AssetClassManager,
-    CategoryManager
+    CategoryManager,
   },
   setup() {
-    const activeTab = ref('dashboard')
-    const dashboardKey = ref(0)
+    const activeTab = ref("dashboard");
+    const dashboardKey = ref(0);
 
     const refreshDashboard = () => {
-      dashboardKey.value++
-    }
+      dashboardKey.value++;
+    };
 
     return {
       activeTab,
       dashboardKey,
-      refreshDashboard
-    }
-  }
-}
+      refreshDashboard,
+    };
+  },
+};
 </script>
