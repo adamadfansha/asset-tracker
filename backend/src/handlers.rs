@@ -649,10 +649,13 @@ pub async fn send_telegram_report(
     let dashboard_data = get_dashboard_data(State(state.clone())).await?;
     
     // Get previous month data for comparison
-    let previous_total = get_previous_month_total(&state.db).await.unwrap_or(0.0);
+    let previous_data = get_previous_month_data(&state.db).await.unwrap_or(PreviousMonthData {
+        total: 0.0,
+        per_asset: std::collections::HashMap::new(),
+    });
     
     // Format message
-    let message = format_telegram_message(&dashboard_data.0, previous_total);
+    let message = format_telegram_message(&dashboard_data.0, &previous_data);
     
     // Send to Telegram
     let client = reqwest::Client::new();
@@ -682,17 +685,24 @@ pub async fn send_telegram_report(
     Ok((StatusCode::OK, Json(serde_json::json!({"success": true, "message": "Report sent successfully"}))))
 }
 
-async fn get_previous_month_total(db: &sqlx::PgPool) -> Result<f64, sqlx::Error> {
+struct PreviousMonthData {
+    total: f64,
+    per_asset: std::collections::HashMap<String, f64>,
+}
+
+async fn get_previous_month_data(db: &sqlx::PgPool) -> Result<PreviousMonthData, sqlx::Error> {
     #[derive(sqlx::FromRow)]
-    struct PreviousTotal {
-        total: Option<rust_decimal::Decimal>,
+    struct PrevAssetRow {
+        name: String,
+        amount: rust_decimal::Decimal,
     }
     
-    let result = sqlx::query_as::<_, PreviousTotal>(
+    let rows = sqlx::query_as::<_, PrevAssetRow>(
         r#"
-        SELECT SUM(amount) as total
-        FROM asset_snapshots
-        WHERE (snapshot_year, snapshot_month) = (
+        SELECT ac.name, s.amount
+        FROM asset_snapshots s
+        INNER JOIN asset_classes ac ON s.asset_class_id = ac.id
+        WHERE (s.snapshot_year, s.snapshot_month) = (
             SELECT snapshot_year, snapshot_month 
             FROM asset_snapshots 
             WHERE (snapshot_year, snapshot_month) < (
@@ -706,10 +716,19 @@ async fn get_previous_month_total(db: &sqlx::PgPool) -> Result<f64, sqlx::Error>
         )
         "#
     )
-    .fetch_one(db)
+    .fetch_all(db)
     .await?;
     
-    Ok(result.total.map(|d| d.to_f64().unwrap_or(0.0)).unwrap_or(0.0))
+    let mut per_asset = std::collections::HashMap::new();
+    let mut total = 0.0;
+    
+    for row in rows {
+        let amount = row.amount.to_f64().unwrap_or(0.0);
+        total += amount;
+        per_asset.insert(row.name, amount);
+    }
+    
+    Ok(PreviousMonthData { total, per_asset })
 }
 
 fn format_rupiah(amount: f64) -> String {
@@ -727,7 +746,7 @@ fn format_rupiah(amount: f64) -> String {
     result
 }
 
-fn format_telegram_message(data: &serde_json::Value, previous_total: f64) -> String {
+fn format_telegram_message(data: &serde_json::Value, previous: &PreviousMonthData) -> String {
     use chrono_tz::Asia::Jakarta;
     
     let total = data["total"].as_f64().unwrap_or(0.0);
@@ -739,9 +758,9 @@ fn format_telegram_message(data: &serde_json::Value, previous_total: f64) -> Str
     message.push_str(&format!("💰 <b>Total Assets:</b> Rp {}\n", format_rupiah(total)));
     
     // Add comparison with previous month
-    if previous_total > 0.0 {
-        let difference = total - previous_total;
-        let percentage_change = (difference / previous_total) * 100.0;
+    if previous.total > 0.0 {
+        let difference = total - previous.total;
+        let percentage_change = (difference / previous.total) * 100.0;
         
         if difference > 0.0 {
             message.push_str(&format!("   📈 <i>+Rp {} ({:+.2}%) from last month</i>\n", format_rupiah(difference), percentage_change));
@@ -760,6 +779,23 @@ fn format_telegram_message(data: &serde_json::Value, previous_total: f64) -> Str
         let amount = allocation["amount"].as_f64().unwrap_or(0.0);
         let percentage = allocation["percentage"].as_f64().unwrap_or(0.0);
         message.push_str(&format!("• {}: Rp {} ({:.2}%)\n", name, format_rupiah(amount), percentage));
+        
+        // Per-asset comparison with previous month
+        if let Some(&prev_amount) = previous.per_asset.get(name) {
+            if prev_amount > 0.0 {
+                let diff = amount - prev_amount;
+                let pct_change = (diff / prev_amount) * 100.0;
+                if diff > 0.0 {
+                    message.push_str(&format!("   📈 <i>+Rp {} ({:+.2}%)</i>\n", format_rupiah(diff), pct_change));
+                } else if diff < 0.0 {
+                    message.push_str(&format!("   📉 <i>-Rp {} ({:.2}%)</i>\n", format_rupiah(diff.abs()), pct_change));
+                } else {
+                    message.push_str("   ➡️ <i>No change</i>\n");
+                }
+            }
+        } else if !previous.per_asset.is_empty() {
+            message.push_str("   🆕 <i>New asset</i>\n");
+        }
     }
     
     // Get current time in Jakarta timezone (GMT+7)
