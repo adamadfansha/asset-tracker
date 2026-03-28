@@ -358,6 +358,85 @@ pub async fn get_history(
     Ok(Json(serde_json::json!(result)))
 }
 
+// Category Management Handlers
+pub async fn get_categories(
+    State(state): State<Arc<AppState>>
+) -> Result<Json<Vec<AllocationPreference>>, StatusCode> {
+    let categories = sqlx::query_as::<_, AllocationPreference>(
+        "SELECT id, category_name, target_percentage FROM allocation_preferences ORDER BY category_name"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching categories: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(categories))
+}
+
+pub async fn create_category(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<CreateCategory>
+) -> Result<(StatusCode, Json<AllocationPreference>), StatusCode> {
+    let category = sqlx::query_as::<_, AllocationPreference>(
+        "INSERT INTO allocation_preferences (category_name, target_percentage) VALUES ($1, 0) RETURNING id, category_name, target_percentage"
+    )
+    .bind(&payload.category_name)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error creating category: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok((StatusCode::CREATED, Json(category)))
+}
+
+pub async fn delete_category(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>
+) -> Result<StatusCode, StatusCode> {
+    // Check if any asset classes are mapped to this category
+    let category = sqlx::query_as::<_, AllocationPreference>(
+        "SELECT id, category_name, target_percentage FROM allocation_preferences WHERE id = $1"
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching category: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let count: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM asset_class_categories WHERE category_name = $1"
+    )
+    .bind(&category.category_name)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error checking category usage: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if count.0 > 0 {
+        eprintln!("Cannot delete category with mapped asset classes");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    sqlx::query("DELETE FROM allocation_preferences WHERE id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            eprintln!("Error deleting category: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // Allocation Preferences Handlers
 pub async fn get_allocation_preferences(
     State(state): State<Arc<AppState>>

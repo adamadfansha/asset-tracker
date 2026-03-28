@@ -150,12 +150,9 @@
               <td class="asset-name">{{ mapping.asset_class_name }}</td>
               <td>
                 <select v-model="mapping.category_name" class="category-select">
-                  <option value="Cash">💵 Cash</option>
-                  <option value="Mutual Fund">📊 Mutual Fund</option>
-                  <option value="Stock">📈 Stock</option>
-                  <option value="Gold">🪙 Gold</option>
-                  <option value="Bitcoin">₿ Bitcoin</option>
-                  <option value="Other">📦 Other</option>
+                  <option v-for="cat in availableCategories" :key="cat.category_name" :value="cat.category_name">
+                    {{ cat.category_name }}
+                  </option>
                 </select>
               </td>
               <td>
@@ -183,6 +180,7 @@ export default {
     const additionalAmount = ref(0)
     const recommendations = ref(null)
     const expandedBreakdowns = ref({})
+    const availableCategories = ref([])
 
     const toggleBreakdown = (assetClass) => {
       expandedBreakdowns.value[assetClass] = !expandedBreakdowns.value[assetClass]
@@ -258,6 +256,15 @@ export default {
       }
     }
 
+    const loadAvailableCategories = async () => {
+      try {
+        const response = await axios.get('/api/categories')
+        availableCategories.value = response.data
+      } catch (error) {
+        console.error('Error loading categories:', error)
+      }
+    }
+
     const updateMapping = async (mapping) => {
       try {
         await axios.post('/api/asset-class-categories', {
@@ -311,11 +318,13 @@ export default {
     onMounted(async () => {
       await loadPreferences()
       await loadAssetClassMappings()
+      await loadAvailableCategories()
     })
 
     return {
       preferences,
       assetClassMappings,
+      availableCategories,
       additionalAmount,
       recommendations,
       expandedBreakdowns,

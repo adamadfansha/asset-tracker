@@ -77,6 +77,16 @@ pub struct UpdateAllocationPreference {
     pub target_percentage: f64,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateCategory {
+    pub category_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteCategory {
+    pub category_name: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AssetClassCategory {
     pub id: i32,

@@ -1,27 +1,35 @@
 <template>
   <div class="asset-manager">
     <div class="card">
-      <h2>{{ isEditMode ? 'Edit Monthly Asset' : 'Monthly Asset Input' }}</h2>
+      <h2>{{ isEditMode ? "Edit Monthly Asset" : "Monthly Asset Input" }}</h2>
       <form @submit.prevent="saveSnapshot">
         <div class="form-row">
           <div class="form-group">
             <label>Month</label>
             <select v-model="form.month" required>
               <option value="">Select Month</option>
-              <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+              <option v-for="m in months" :key="m.value" :value="m.value">
+                {{ m.label }}
+              </option>
             </select>
           </div>
           <div class="form-group">
             <label>Year</label>
-            <input type="number" v-model="form.year" required min="2020" max="2100" />
+            <input
+              type="number"
+              v-model="form.year"
+              required
+              min="2020"
+              max="2100"
+            />
           </div>
         </div>
 
         <div class="asset-inputs">
           <div v-for="cls in assetClasses" :key="cls.id" class="form-group">
             <label>{{ cls.name }}</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="formatInputValue(cls.name)"
               @input="handleInput(cls.name, $event)"
               @blur="handleBlur(cls.name)"
@@ -32,9 +40,14 @@
 
         <div class="button-group">
           <button type="submit" class="btn btn-primary">
-            💾 {{ isEditMode ? 'Update Monthly Data' : 'Save Monthly Data' }}
+            💾 {{ isEditMode ? "Update Monthly Data" : "Save Monthly Data" }}
           </button>
-          <button v-if="isEditMode" type="button" @click="cancelEdit" class="btn btn-secondary">
+          <button
+            v-if="isEditMode"
+            type="button"
+            @click="cancelEdit"
+            class="btn btn-secondary"
+          >
             Cancel
           </button>
         </div>
@@ -48,7 +61,9 @@
           <thead>
             <tr>
               <th>Month</th>
-              <th v-for="cls in assetClasses" :key="cls.id" class="text-right">{{ cls.name }}</th>
+              <th v-for="cls in assetClasses" :key="cls.id" class="text-right">
+                {{ cls.name }}
+              </th>
               <th class="text-right">Total</th>
               <th class="text-right">Change</th>
               <th class="text-center">Action</th>
@@ -60,12 +75,20 @@
               <td v-for="cls in assetClasses" :key="cls.id" class="text-right">
                 {{ formatNumber(item.assets[cls.name] || 0) }}
               </td>
-              <td class="text-right total-col">{{ formatNumber(item.total) }}</td>
+              <td class="text-right total-col">
+                {{ formatNumber(item.total) }}
+              </td>
               <td class="text-right change-col" :class="getChangeClass(index)">
                 {{ getChangeText(index) }}
               </td>
               <td class="text-center">
-                <button @click="editMonth(item)" class="btn-icon btn-edit" title="Edit">✏️</button>
+                <button
+                  @click="editMonth(item)"
+                  class="btn-icon btn-edit"
+                  title="Edit"
+                >
+                  ✏️
+                </button>
               </td>
             </tr>
           </tbody>
@@ -76,165 +99,178 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, onMounted } from "vue";
+import axios from "axios";
 
 export default {
-  name: 'AssetManager',
-  emits: ['updated'],
+  name: "AssetManager",
+  emits: ["updated"],
   setup(props, { emit }) {
-    const assetClasses = ref([])
-    const history = ref([])
-    const isEditMode = ref(false)
+    const assetClasses = ref([]);
+    const history = ref([]);
+    const isEditMode = ref(false);
     const form = ref({
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      assets: {}
-    })
+      assets: {},
+    });
 
     const months = [
-      { value: 1, label: 'January' },
-      { value: 2, label: 'February' },
-      { value: 3, label: 'March' },
-      { value: 4, label: 'April' },
-      { value: 5, label: 'May' },
-      { value: 6, label: 'June' },
-      { value: 7, label: 'July' },
-      { value: 8, label: 'August' },
-      { value: 9, label: 'September' },
-      { value: 10, label: 'October' },
-      { value: 11, label: 'November' },
-      { value: 12, label: 'December' }
-    ]
+      { value: 1, label: "January" },
+      { value: 2, label: "February" },
+      { value: 3, label: "March" },
+      { value: 4, label: "April" },
+      { value: 5, label: "May" },
+      { value: 6, label: "June" },
+      { value: 7, label: "July" },
+      { value: 8, label: "August" },
+      { value: 9, label: "September" },
+      { value: 10, label: "October" },
+      { value: 11, label: "November" },
+      { value: 12, label: "December" },
+    ];
 
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
-    }
+      return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(num);
+    };
 
     const formatInputValue = (assetName) => {
-      const value = form.value.assets[assetName]
-      if (!value || value === 0) return ''
-      return new Intl.NumberFormat('id-ID').format(value)
-    }
+      const value = form.value.assets[assetName];
+      if (!value || value === 0) return "";
+      return new Intl.NumberFormat("id-ID").format(value);
+    };
 
     const handleInput = (assetName, event) => {
       // Remove all non-digit characters
-      let value = event.target.value.replace(/[^\d]/g, '')
-      
+      let value = event.target.value.replace(/[^\d]/g, "");
+
       // Convert to number
-      const numValue = value === '' ? 0 : parseInt(value)
-      form.value.assets[assetName] = numValue
-      
+      const numValue = value === "" ? 0 : parseInt(value);
+      form.value.assets[assetName] = numValue;
+
       // Format with thousand separators
-      if (value !== '') {
-        event.target.value = new Intl.NumberFormat('id-ID').format(numValue)
+      if (value !== "") {
+        event.target.value = new Intl.NumberFormat("id-ID").format(numValue);
       }
-    }
+    };
 
     const handleBlur = (assetName) => {
       // Ensure the value is properly formatted on blur
-      const value = form.value.assets[assetName]
-      if (value === 0 || value === '') {
-        form.value.assets[assetName] = 0
+      const value = form.value.assets[assetName];
+      if (value === 0 || value === "") {
+        form.value.assets[assetName] = 0;
       }
-    }
+    };
 
     const formatDate = (dateStr) => {
-      const [year, month] = dateStr.split('-')
-      const monthName = months.find(m => m.value === parseInt(month))?.label || ''
-      return `${monthName} ${year}`
-    }
+      const [year, month] = dateStr.split("-");
+      const monthName =
+        months.find((m) => m.value === parseInt(month))?.label || "";
+      return `${monthName} ${year}`;
+    };
 
     const getChangeText = (index) => {
-      if (index === 0) return '-'
-      const current = history.value[index].total
-      const previous = history.value[index - 1].total
-      const change = ((current - previous) / previous) * 100
-      return change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`
-    }
+      if (index === 0) return "-";
+      const current = history.value[index].total;
+      const previous = history.value[index - 1].total;
+      const change = ((current - previous) / previous) * 100;
+      return change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+    };
 
     const getChangeClass = (index) => {
-      if (index === 0) return ''
-      const current = history.value[index].total
-      const previous = history.value[index - 1].total
-      return current > previous ? 'positive' : 'negative'
-    }
+      if (index === 0) return "";
+      const current = history.value[index].total;
+      const previous = history.value[index - 1].total;
+      return current > previous ? "positive" : "negative";
+    };
 
     const loadAssetClasses = async () => {
-      const response = await axios.get('/api/asset-classes')
-      assetClasses.value = response.data
-      
-      assetClasses.value.forEach(cls => {
+      const response = await axios.get("/api/asset-classes");
+      assetClasses.value = response.data;
+
+      assetClasses.value.forEach((cls) => {
         if (!form.value.assets[cls.name]) {
-          form.value.assets[cls.name] = 0
+          form.value.assets[cls.name] = 0;
         }
-      })
-    }
+      });
+    };
 
     const loadHistory = async () => {
-      const response = await axios.get('/api/history')
-      history.value = response.data
-    }
+      const response = await axios.get("/api/history");
+      history.value = response.data;
+    };
 
     const saveSnapshot = async () => {
       // Validate date is not in the future
-      const selectedDate = new Date(form.value.year, form.value.month - 1)
-      const currentDate = new Date()
-      const currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth())
-      
+      const selectedDate = new Date(form.value.year, form.value.month - 1);
+      const currentDate = new Date();
+      const currentMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+      );
+
       if (selectedDate > currentMonth) {
-        alert('Cannot save data for future months! Please select current month or earlier.')
-        return
+        alert(
+          "Cannot save data for future months! Please select current month or earlier.",
+        );
+        return;
       }
-      
+
       try {
-        await axios.post('/api/snapshots/bulk', {
+        await axios.post("/api/snapshots/bulk", {
           snapshot_month: parseInt(form.value.month),
           snapshot_year: parseInt(form.value.year),
-          assets: form.value.assets
-        })
-        
-        await loadHistory()
-        emit('updated')
-        alert(isEditMode.value ? 'Data successfully updated!' : 'Data successfully saved!')
-        
-        resetForm()
+          assets: form.value.assets,
+        });
+
+        await loadHistory();
+        emit("updated");
+        alert(
+          isEditMode.value
+            ? "Data successfully updated!"
+            : "Data successfully saved!",
+        );
+
+        resetForm();
       } catch (error) {
-        alert('Error: ' + (error.response?.data?.message || error.message))
+        alert("Error: " + (error.response?.data?.message || error.message));
       }
-    }
+    };
 
     const editMonth = (item) => {
-      isEditMode.value = true
-      const [year, month] = item.date.split('-')
-      form.value.month = parseInt(month)
-      form.value.year = parseInt(year)
-      
+      isEditMode.value = true;
+      const [year, month] = item.date.split("-");
+      form.value.month = parseInt(month);
+      form.value.year = parseInt(year);
+
       // Fill form with existing data
-      assetClasses.value.forEach(cls => {
-        form.value.assets[cls.name] = item.assets[cls.name] || 0
-      })
-      
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+      assetClasses.value.forEach((cls) => {
+        form.value.assets[cls.name] = item.assets[cls.name] || 0;
+      });
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
     const cancelEdit = () => {
-      resetForm()
-    }
+      resetForm();
+    };
 
     const resetForm = () => {
-      isEditMode.value = false
-      form.value.month = new Date().getMonth() + 1
-      form.value.year = new Date().getFullYear()
-      assetClasses.value.forEach(cls => {
-        form.value.assets[cls.name] = 0
-      })
-    }
+      isEditMode.value = false;
+      form.value.month = new Date().getMonth() + 1;
+      form.value.year = new Date().getFullYear();
+      assetClasses.value.forEach((cls) => {
+        form.value.assets[cls.name] = 0;
+      });
+    };
 
     onMounted(async () => {
-      await loadAssetClasses()
-      await loadHistory()
-    })
+      await loadAssetClasses();
+      await loadHistory();
+    });
 
     return {
       assetClasses,
@@ -251,10 +287,10 @@ export default {
       getChangeClass,
       saveSnapshot,
       editMonth,
-      cancelEdit
-    }
-  }
-}
+      cancelEdit,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -454,16 +490,16 @@ tbody tr:hover {
   .asset-inputs {
     grid-template-columns: 1fr;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .button-group {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .button-group .btn {
     width: 100%;
   }

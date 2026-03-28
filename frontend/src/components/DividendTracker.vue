@@ -1,47 +1,60 @@
 <template>
   <div>
     <div class="card">
-      <h2>{{ isEditMode ? 'Edit Dividend' : 'Add Dividend' }}</h2>
+      <h2>{{ isEditMode ? "Edit Dividend" : "Add Dividend" }}</h2>
       <form @submit.prevent="saveDividend">
         <div class="form-row">
           <div class="form-group">
             <label>Stock Code</label>
-            <input 
-              type="text" 
-              v-model="form.stock_name" 
-              placeholder="e.g., BBCA, TLKM, ASII" 
-              required 
-              style="text-transform: uppercase;"
+            <input
+              type="text"
+              v-model="form.stock_name"
+              placeholder="e.g., BBCA, TLKM, ASII"
+              required
+              style="text-transform: uppercase"
             />
           </div>
           <div class="form-group">
             <label>Amount (Rp)</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               :value="formatInputAmount"
               @input="handleAmountInput"
               @blur="handleAmountBlur"
               placeholder="0"
-              required 
+              required
             />
           </div>
           <div class="form-group">
             <label>Month</label>
             <select v-model="form.received_month" required>
               <option value="">Select Month</option>
-              <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+              <option v-for="m in months" :key="m.value" :value="m.value">
+                {{ m.label }}
+              </option>
             </select>
           </div>
           <div class="form-group">
             <label>Year</label>
-            <input type="number" v-model="form.received_year" required min="2020" max="2100" />
+            <input
+              type="number"
+              v-model="form.received_year"
+              required
+              min="2020"
+              max="2100"
+            />
           </div>
         </div>
         <div class="button-group">
           <button type="submit" class="btn btn-primary">
-            {{ isEditMode ? 'Update Dividend' : 'Add Dividend' }}
+            {{ isEditMode ? "Update Dividend" : "Add Dividend" }}
           </button>
-          <button v-if="isEditMode" type="button" @click="cancelEdit" class="btn btn-secondary">
+          <button
+            v-if="isEditMode"
+            type="button"
+            @click="cancelEdit"
+            class="btn btn-secondary"
+          >
             Cancel
           </button>
         </div>
@@ -55,7 +68,9 @@
           <div class="summary-icon">💵</div>
           <div class="summary-content">
             <h3>Total Dividends</h3>
-            <div class="summary-value">Rp {{ formatNumber(totalDividends) }}</div>
+            <div class="summary-value">
+              Rp {{ formatNumber(totalDividends) }}
+            </div>
           </div>
         </div>
         <div class="summary-card">
@@ -66,7 +81,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="table-container">
         <table>
           <thead>
@@ -81,10 +96,26 @@
             <tr v-for="dividend in dividends" :key="dividend.id">
               <td class="stock-code">{{ dividend.stock_name }}</td>
               <td class="text-right">{{ formatNumber(dividend.amount) }}</td>
-              <td>{{ formatPeriod(dividend.received_month, dividend.received_year) }}</td>
+              <td>
+                {{
+                  formatPeriod(dividend.received_month, dividend.received_year)
+                }}
+              </td>
               <td class="text-center action-buttons">
-                <button @click="editDividend(dividend)" class="btn-icon btn-edit" title="Edit">✏️</button>
-                <button @click="deleteDividend(dividend.id)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+                <button
+                  @click="editDividend(dividend)"
+                  class="btn-icon btn-edit"
+                  title="Edit"
+                >
+                  ✏️
+                </button>
+                <button
+                  @click="deleteDividend(dividend.id)"
+                  class="btn-icon btn-delete"
+                  title="Delete"
+                >
+                  🗑️
+                </button>
               </td>
             </tr>
           </tbody>
@@ -95,90 +126,90 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+import { ref, onMounted, computed } from "vue";
+import axios from "axios";
 
 export default {
-  name: 'DividendTracker',
+  name: "DividendTracker",
   setup() {
-    const dividends = ref([])
-    const isEditMode = ref(false)
-    const editingId = ref(null)
+    const dividends = ref([]);
+    const isEditMode = ref(false);
+    const editingId = ref(null);
     const form = ref({
-      stock_name: '',
-      amount: '',
+      stock_name: "",
+      amount: "",
       received_month: new Date().getMonth() + 1,
-      received_year: new Date().getFullYear()
-    })
+      received_year: new Date().getFullYear(),
+    });
 
     const months = [
-      { value: 1, label: 'January' },
-      { value: 2, label: 'February' },
-      { value: 3, label: 'March' },
-      { value: 4, label: 'April' },
-      { value: 5, label: 'May' },
-      { value: 6, label: 'June' },
-      { value: 7, label: 'July' },
-      { value: 8, label: 'August' },
-      { value: 9, label: 'September' },
-      { value: 10, label: 'October' },
-      { value: 11, label: 'November' },
-      { value: 12, label: 'December' }
-    ]
+      { value: 1, label: "January" },
+      { value: 2, label: "February" },
+      { value: 3, label: "March" },
+      { value: 4, label: "April" },
+      { value: 5, label: "May" },
+      { value: 6, label: "June" },
+      { value: 7, label: "July" },
+      { value: 8, label: "August" },
+      { value: 9, label: "September" },
+      { value: 10, label: "October" },
+      { value: 11, label: "November" },
+      { value: 12, label: "December" },
+    ];
 
     const totalDividends = computed(() => {
-      return dividends.value.reduce((sum, d) => sum + d.amount, 0)
-    })
+      return dividends.value.reduce((sum, d) => sum + d.amount, 0);
+    });
 
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('id-ID').format(num)
-    }
+      return new Intl.NumberFormat("id-ID").format(num);
+    };
 
     const formatInputAmount = computed(() => {
-      if (!form.value.amount || form.value.amount === 0) return ''
-      return new Intl.NumberFormat('id-ID').format(form.value.amount)
-    })
+      if (!form.value.amount || form.value.amount === 0) return "";
+      return new Intl.NumberFormat("id-ID").format(form.value.amount);
+    });
 
     const handleAmountInput = (event) => {
-      let value = event.target.value.replace(/[^\d]/g, '')
-      const numValue = value === '' ? 0 : parseInt(value)
-      form.value.amount = numValue
-      if (value !== '') {
-        event.target.value = new Intl.NumberFormat('id-ID').format(numValue)
+      let value = event.target.value.replace(/[^\d]/g, "");
+      const numValue = value === "" ? 0 : parseInt(value);
+      form.value.amount = numValue;
+      if (value !== "") {
+        event.target.value = new Intl.NumberFormat("id-ID").format(numValue);
       }
-    }
+    };
 
     const handleAmountBlur = () => {
-      if (form.value.amount === 0 || form.value.amount === '') {
-        form.value.amount = 0
+      if (form.value.amount === 0 || form.value.amount === "") {
+        form.value.amount = 0;
       }
-    }
+    };
 
     const formatPeriod = (month, year) => {
-      const monthName = months.find(m => m.value === month)?.label || ''
-      return `${monthName} ${year}`
-    }
+      const monthName = months.find((m) => m.value === month)?.label || "";
+      return `${monthName} ${year}`;
+    };
 
     const loadDividends = async () => {
-      const response = await axios.get('/api/dividends')
-      dividends.value = response.data
-    }
+      const response = await axios.get("/api/dividends");
+      dividends.value = response.data;
+    };
 
     const addDividend = async () => {
       try {
-        await axios.post('/api/dividends', {
+        await axios.post("/api/dividends", {
           stock_name: form.value.stock_name.toUpperCase(),
           amount: parseFloat(form.value.amount),
           received_month: parseInt(form.value.received_month),
-          received_year: parseInt(form.value.received_year)
-        })
-        resetForm()
-        await loadDividends()
-        alert('Dividend successfully added!')
+          received_year: parseInt(form.value.received_year),
+        });
+        resetForm();
+        await loadDividends();
+        alert("Dividend successfully added!");
       } catch (error) {
-        alert('Error: ' + (error.response?.data?.message || error.message))
+        alert("Error: " + (error.response?.data?.message || error.message));
       }
-    }
+    };
 
     const updateDividend = async () => {
       try {
@@ -186,65 +217,65 @@ export default {
           stock_name: form.value.stock_name.toUpperCase(),
           amount: parseFloat(form.value.amount),
           received_month: parseInt(form.value.received_month),
-          received_year: parseInt(form.value.received_year)
-        })
-        resetForm()
-        await loadDividends()
-        alert('Dividend successfully updated!')
+          received_year: parseInt(form.value.received_year),
+        });
+        resetForm();
+        await loadDividends();
+        alert("Dividend successfully updated!");
       } catch (error) {
-        alert('Error: ' + (error.response?.data?.message || error.message))
+        alert("Error: " + (error.response?.data?.message || error.message));
       }
-    }
+    };
 
     const saveDividend = () => {
       if (isEditMode.value) {
-        updateDividend()
+        updateDividend();
       } else {
-        addDividend()
+        addDividend();
       }
-    }
+    };
 
     const editDividend = (dividend) => {
-      isEditMode.value = true
-      editingId.value = dividend.id
+      isEditMode.value = true;
+      editingId.value = dividend.id;
       form.value = {
         stock_name: dividend.stock_name,
         amount: dividend.amount,
         received_month: dividend.received_month,
-        received_year: dividend.received_year
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+        received_year: dividend.received_year,
+      };
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
     const deleteDividend = async (id) => {
-      if (!confirm('Are you sure you want to delete this dividend?')) {
-        return
+      if (!confirm("Are you sure you want to delete this dividend?")) {
+        return;
       }
       try {
-        await axios.delete(`/api/dividends/${id}`)
-        await loadDividends()
-        alert('Dividend successfully deleted!')
+        await axios.delete(`/api/dividends/${id}`);
+        await loadDividends();
+        alert("Dividend successfully deleted!");
       } catch (error) {
-        alert('Error: ' + (error.response?.data?.message || error.message))
+        alert("Error: " + (error.response?.data?.message || error.message));
       }
-    }
+    };
 
     const cancelEdit = () => {
-      resetForm()
-    }
+      resetForm();
+    };
 
     const resetForm = () => {
-      isEditMode.value = false
-      editingId.value = null
+      isEditMode.value = false;
+      editingId.value = null;
       form.value = {
-        stock_name: '',
+        stock_name: "",
         amount: 0,
         received_month: new Date().getMonth() + 1,
-        received_year: new Date().getFullYear()
-      }
-    }
+        received_year: new Date().getFullYear(),
+      };
+    };
 
-    onMounted(loadDividends)
+    onMounted(loadDividends);
 
     return {
       dividends,
@@ -260,10 +291,10 @@ export default {
       saveDividend,
       editDividend,
       deleteDividend,
-      cancelEdit
-    }
-  }
-}
+      cancelEdit,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -416,7 +447,7 @@ tbody tr:hover {
 .stock-code {
   font-weight: 700;
   color: #1a202c;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 14px;
 }
 
@@ -478,16 +509,16 @@ tbody tr:hover {
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .dividend-summary {
     grid-template-columns: 1fr;
   }
-  
+
   .button-group {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .button-group .btn {
     width: 100%;
   }

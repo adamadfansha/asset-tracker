@@ -1,34 +1,37 @@
 <template>
   <div>
     <div class="card">
-      <h2>Add New Asset Class</h2>
-      <form @submit.prevent="addClass">
+      <h2>➕ Add New Category</h2>
+      <form @submit.prevent="addCategory">
         <div class="form-group">
-          <label>Asset Class Name</label>
+          <label>Category Name</label>
           <input
             type="text"
-            v-model="newClassName"
-            placeholder="e.g., Stock, Mutual Fund, Gold"
+            v-model="newCategoryName"
+            placeholder="e.g., Crypto, Property, Bonds"
             required
           />
         </div>
-        <button type="submit" class="btn btn-primary">Add Asset Class</button>
+        <button type="submit" class="btn btn-primary">Add Category</button>
       </form>
     </div>
 
     <div class="card">
-      <h2>Asset Classes</h2>
+      <h2>📂 Categories</h2>
+      <p class="subtitle">
+        Categories are used to group asset classes for rebalancing calculations
+      </p>
       <div class="categories-grid">
-        <div v-for="cls in assetClasses" :key="cls.id" class="category-card">
-          <div class="category-icon">🏷️</div>
+        <div v-for="cat in categories" :key="cat.id" class="category-card">
+          <div class="category-icon">📂</div>
           <div class="category-content">
-            <div class="category-name">{{ cls.name }}</div>
-            <div class="category-status" :class="{ active: cls.is_active }">
-              {{ cls.is_active ? "Active" : "Inactive" }}
+            <div class="category-name">{{ cat.category_name }}</div>
+            <div class="category-target">
+              Target: {{ cat.target_percentage }}%
             </div>
           </div>
           <button
-            @click="deleteClass(cls.id)"
+            @click="deleteCategory(cat)"
             class="btn-delete"
             title="Delete category"
           >
@@ -45,47 +48,52 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 
 export default {
-  name: "AssetClassManager",
+  name: "CategoryManager",
   emits: ["updated"],
   setup(props, { emit }) {
-    const assetClasses = ref([]);
-    const newClassName = ref("");
+    const categories = ref([]);
+    const newCategoryName = ref("");
 
-    const loadAssetClasses = async () => {
-      const response = await axios.get("/api/asset-classes");
-      assetClasses.value = response.data;
+    const loadCategories = async () => {
+      try {
+        const response = await axios.get("/api/categories");
+        categories.value = response.data;
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
     };
 
-    const addClass = async () => {
+    const addCategory = async () => {
       try {
-        await axios.post("/api/asset-classes", { name: newClassName.value });
-        newClassName.value = "";
-        await loadAssetClasses();
+        await axios.post("/api/categories", {
+          category_name: newCategoryName.value,
+        });
+        newCategoryName.value = "";
+        await loadCategories();
         emit("updated");
-        alert("Asset class successfully added!");
+        alert("Category successfully added!");
       } catch (error) {
         alert("Error: " + (error.response?.data?.message || error.message));
       }
     };
 
-    const deleteClass = async (id) => {
+    const deleteCategory = async (cat) => {
       if (
         !confirm(
-          "Are you sure you want to delete this asset class? This action cannot be undone.",
+          `Are you sure you want to delete "${cat.category_name}"? This action cannot be undone.`,
         )
       ) {
         return;
       }
-
       try {
-        await axios.delete(`/api/asset-classes/${id}`);
-        await loadAssetClasses();
+        await axios.delete(`/api/categories/${cat.id}`);
+        await loadCategories();
         emit("updated");
-        alert("Asset class successfully deleted!");
+        alert("Category successfully deleted!");
       } catch (error) {
         if (error.response?.status === 400) {
           alert(
-            "Cannot delete asset class: There are assets using this class. Please delete or reassign those assets first.",
+            "Cannot delete category: There are asset classes mapped to this category. Please reassign them first.",
           );
         } else {
           alert("Error: " + (error.response?.data?.message || error.message));
@@ -93,14 +101,9 @@ export default {
       }
     };
 
-    onMounted(loadAssetClasses);
+    onMounted(loadCategories);
 
-    return {
-      assetClasses,
-      newClassName,
-      addClass,
-      deleteClass,
-    };
+    return { categories, newCategoryName, addCategory, deleteCategory };
   },
 };
 </script>
@@ -115,27 +118,27 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
 }
-
 .card h2 {
   margin: 0 0 24px 0;
   font-size: 20px;
   color: #1a202c;
   font-weight: 700;
 }
-
+.subtitle {
+  margin: -16px 0 24px 0;
+  color: #718096;
+  font-size: 14px;
+}
 .form-group {
   margin-bottom: 20px;
 }
-
 .form-group label {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
   color: #2d3748;
   font-size: 14px;
-  letter-spacing: 0.3px;
 }
-
 .form-group input {
   width: 100%;
   padding: 12px 16px;
@@ -145,13 +148,11 @@ export default {
   transition: all 0.3s ease;
   background: white;
 }
-
 .form-group input:focus {
   outline: none;
   border-color: #2d3748;
   box-shadow: 0 0 0 3px rgba(45, 55, 72, 0.1);
 }
-
 .btn {
   padding: 14px 28px;
   border: none;
@@ -160,26 +161,21 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  letter-spacing: 0.3px;
 }
-
 .btn-primary {
   background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(26, 32, 44, 0.3);
 }
-
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(26, 32, 44, 0.4);
 }
-
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 20px;
 }
-
 .category-card {
   background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
   padding: 24px;
@@ -189,15 +185,29 @@ export default {
   gap: 16px;
   border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
-  position: relative;
 }
-
 .category-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
   border-color: #2d3748;
 }
-
+.category-icon {
+  font-size: 32px;
+}
+.category-content {
+  flex: 1;
+}
+.category-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 4px;
+}
+.category-target {
+  font-size: 12px;
+  font-weight: 600;
+  color: #718096;
+}
 .btn-delete {
   background: #fc8181;
   color: white;
@@ -209,39 +219,10 @@ export default {
   transition: all 0.3s ease;
   margin-left: auto;
 }
-
 .btn-delete:hover {
   background: #f56565;
   transform: scale(1.1);
 }
-
-.category-icon {
-  font-size: 32px;
-}
-
-.category-content {
-  flex: 1;
-}
-
-.category-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a202c;
-  margin-bottom: 6px;
-}
-
-.category-status {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #718096;
-}
-
-.category-status.active {
-  color: #38a169;
-}
-
 @media (max-width: 768px) {
   .categories-grid {
     grid-template-columns: 1fr;

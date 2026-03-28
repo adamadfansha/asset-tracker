@@ -8,7 +8,8 @@
           <div class="value">Rp {{ formatNumber(dashboardData.total) }}</div>
           <div class="growth" :class="growthClass">
             <span v-if="monthlyGrowth !== null">
-              {{ monthlyGrowth > 0 ? '↑' : '↓' }} {{ Math.abs(monthlyGrowth).toFixed(2) }}%
+              {{ monthlyGrowth > 0 ? "↑" : "↓" }}
+              {{ Math.abs(monthlyGrowth).toFixed(2) }}%
             </span>
             <span v-else>-</span>
           </div>
@@ -18,7 +19,9 @@
         <div class="stat-icon">💵</div>
         <div class="stat-content">
           <h3>Total Dividends</h3>
-          <div class="value">Rp {{ formatNumber(dashboardData.total_dividends) }}</div>
+          <div class="value">
+            Rp {{ formatNumber(dashboardData.total_dividends) }}
+          </div>
         </div>
       </div>
     </div>
@@ -41,21 +44,41 @@
       <div class="chart-card half">
         <h2>📋 Allocation Details</h2>
         <div class="allocation-list">
-          <div v-for="(group, category) in groupedAllocations" :key="category" class="allocation-group">
+          <div
+            v-for="(group, category) in groupedAllocations"
+            :key="category"
+            class="allocation-group"
+          >
             <div class="allocation-item main">
               <div class="allocation-header">
                 <span class="allocation-name">{{ category }}</span>
-                <span class="allocation-percentage">{{ group.percentage.toFixed(2) }}%</span>
+                <span class="allocation-percentage"
+                  >{{ group.percentage.toFixed(2) }}%</span
+                >
               </div>
               <div class="allocation-bar">
-                <div class="allocation-fill" :style="{ width: group.percentage + '%', background: group.color }"></div>
+                <div
+                  class="allocation-fill"
+                  :style="{
+                    width: group.percentage + '%',
+                    background: group.color,
+                  }"
+                ></div>
               </div>
-              <div class="allocation-amount">Rp {{ formatNumber(group.total) }}</div>
+              <div class="allocation-amount">
+                Rp {{ formatNumber(group.total) }}
+              </div>
             </div>
             <div v-if="group.details.length > 1" class="allocation-breakdown">
-              <div v-for="detail in group.details" :key="detail.name" class="allocation-sub-item">
+              <div
+                v-for="detail in group.details"
+                :key="detail.name"
+                class="allocation-sub-item"
+              >
                 <span class="sub-name">{{ detail.name }}</span>
-                <span class="sub-amount">Rp {{ formatNumber(detail.amount) }}</span>
+                <span class="sub-amount"
+                  >Rp {{ formatNumber(detail.amount) }}</span
+                >
               </div>
             </div>
           </div>
@@ -66,305 +89,373 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
-import { Pie, Line } from 'vue-chartjs'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler } from 'chart.js'
-import axios from 'axios'
+import { ref, onMounted, computed } from "vue";
+import { Pie, Line } from "vue-chartjs";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Filler,
+} from "chart.js";
+import axios from "axios";
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler)
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Filler,
+);
 
 export default {
-  name: 'Dashboard',
+  name: "Dashboard",
   components: { Pie, Line },
   setup() {
-    const dashboardData = ref({ total: 0, allocations: [], total_dividends: 0 })
-    const pieChartData = ref({ labels: [], datasets: [] })
-    const growthChartData = ref({ labels: [], datasets: [] })
-    const historyData = ref([])
-    
+    const dashboardData = ref({
+      total: 0,
+      allocations: [],
+      total_dividends: 0,
+    });
+    const pieChartData = ref({ labels: [], datasets: [] });
+    const growthChartData = ref({ labels: [], datasets: [] });
+    const historyData = ref([]);
+
     const monthlyGrowth = computed(() => {
-      if (historyData.value.length < 2) return null
-      const latest = historyData.value[historyData.value.length - 1].total
-      const previous = historyData.value[historyData.value.length - 2].total
-      return ((latest - previous) / previous) * 100
-    })
+      if (historyData.value.length < 2) return null;
+      const latest = historyData.value[historyData.value.length - 1].total;
+      const previous = historyData.value[historyData.value.length - 2].total;
+      return ((latest - previous) / previous) * 100;
+    });
 
     const growthClass = computed(() => {
-      if (monthlyGrowth.value === null) return ''
-      return monthlyGrowth.value > 0 ? 'positive' : 'negative'
-    })
+      if (monthlyGrowth.value === null) return "";
+      return monthlyGrowth.value > 0 ? "positive" : "negative";
+    });
+
+    const categoryMappingData = ref({});
 
     const groupedAllocations = computed(() => {
-      const categoryMapping = {
-        'Stock': { category: 'Stock', color: '#3b82f6' },
-        'Mutual Fund': { category: 'Mutual Fund', color: '#8b5cf6' },
-        'Gold': { category: 'Gold', color: '#f59e0b' },
-        'Bitcoin': { category: 'Bitcoin', color: '#f97316' },
-        'USD': { category: 'Cash', color: '#10b981' },
-        'Bank': { category: 'Cash', color: '#10b981' },
-        'RDN': { category: 'Cash', color: '#10b981' }
-      }
-      
-      const grouped = {}
-      const total = dashboardData.value.allocations.reduce((sum, item) => sum + item.amount, 0)
-      
-      dashboardData.value.allocations.forEach(item => {
-        const mapping = categoryMapping[item.name] || { category: item.name, color: '#6b7280' }
-        const category = mapping.category
-        
+      const grouped = {};
+      const total = dashboardData.value.allocations.reduce(
+        (sum, item) => sum + item.amount,
+        0,
+      );
+
+      const defaultColors = [
+        "#3b82f6",
+        "#8b5cf6",
+        "#f59e0b",
+        "#f97316",
+        "#10b981",
+        "#ef4444",
+        "#6366f1",
+        "#ec4899",
+        "#14b8a6",
+        "#84cc16",
+      ];
+
+      dashboardData.value.allocations.forEach((item) => {
+        const category = categoryMappingData.value[item.name] || item.name;
+
         if (!grouped[category]) {
+          const colorIndex = Object.keys(grouped).length % defaultColors.length;
           grouped[category] = {
             total: 0,
             percentage: 0,
-            color: mapping.color,
-            details: []
-          }
+            color: defaultColors[colorIndex],
+            details: [],
+          };
         }
-        
-        grouped[category].total += item.amount
+
+        grouped[category].total += item.amount;
         grouped[category].details.push({
           name: item.name,
-          amount: item.amount
-        })
-      })
-      
-      // Calculate percentages
-      Object.keys(grouped).forEach(category => {
-        grouped[category].percentage = (grouped[category].total / total) * 100
-      })
-      
-      return grouped
-    })
-    
+          amount: item.amount,
+        });
+      });
+
+      Object.keys(grouped).forEach((category) => {
+        grouped[category].percentage =
+          total > 0 ? (grouped[category].total / total) * 100 : 0;
+      });
+
+      return grouped;
+    });
+
     const pieChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { 
-          position: 'right',
+        legend: {
+          position: "right",
           labels: {
             padding: 20,
-            font: { size: 14, family: 'Inter', weight: '600' },
-            color: '#1a202c',
+            font: { size: 14, family: "Inter", weight: "600" },
+            color: "#1a202c",
             usePointStyle: true,
-            pointStyle: 'circle',
-            generateLabels: function(chart) {
-              const data = chart.data
+            pointStyle: "circle",
+            generateLabels: function (chart) {
+              const data = chart.data;
               if (data.labels.length && data.datasets.length) {
                 return data.labels.map((label, i) => {
-                  const value = data.datasets[0].data[i]
-                  const total = data.datasets[0].data.reduce((a, b) => a + b, 0)
-                  const percentage = ((value / total) * 100).toFixed(1)
+                  const value = data.datasets[0].data[i];
+                  const total = data.datasets[0].data.reduce(
+                    (a, b) => a + b,
+                    0,
+                  );
+                  const percentage = ((value / total) * 100).toFixed(1);
                   return {
                     text: `${label} (${percentage}%)`,
                     fillStyle: data.datasets[0].backgroundColor[i],
                     hidden: false,
-                    index: i
-                  }
-                })
+                    index: i,
+                  };
+                });
               }
-              return []
-            }
-          }
+              return [];
+            },
+          },
         },
         tooltip: {
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          backgroundColor: "rgba(15, 23, 42, 0.95)",
           padding: 16,
-          titleFont: { size: 15, weight: 'bold', family: 'Inter' },
-          bodyFont: { size: 13, family: 'Inter' },
-          borderColor: 'rgba(255, 255, 255, 0.2)',
+          titleFont: { size: 15, weight: "bold", family: "Inter" },
+          bodyFont: { size: 13, family: "Inter" },
+          borderColor: "rgba(255, 255, 255, 0.2)",
           borderWidth: 1,
           displayColors: true,
           callbacks: {
-            title: function(context) {
-              return context[0].label
+            title: function (context) {
+              return context[0].label;
             },
-            label: function(context) {
-              const value = context.parsed
-              const total = context.dataset.data.reduce((a, b) => a + b, 0)
-              const percentage = ((value / total) * 100).toFixed(2)
-              return `Total: Rp ${new Intl.NumberFormat('id-ID').format(value)} (${percentage}%)`
-            }
-          }
-        }
-      }
-    }
+            label: function (context) {
+              const value = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = ((value / total) * 100).toFixed(2);
+              return `Total: Rp ${new Intl.NumberFormat("id-ID").format(value)} (${percentage}%)`;
+            },
+          },
+        },
+      },
+    };
 
     const growthChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
-        mode: 'index',
+        mode: "index",
         intersect: false,
       },
       plugins: {
-        legend: { 
-          display: false
+        legend: {
+          display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(26, 32, 44, 0.95)',
+          backgroundColor: "rgba(26, 32, 44, 0.95)",
           padding: 12,
-          titleFont: { size: 14, weight: 'bold', family: 'Inter' },
-          bodyFont: { size: 13, family: 'Inter' },
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          titleFont: { size: 14, weight: "bold", family: "Inter" },
+          bodyFont: { size: 13, family: "Inter" },
+          borderColor: "rgba(255, 255, 255, 0.1)",
           borderWidth: 1,
           callbacks: {
-            label: function(context) {
-              const value = context.parsed.y
-              let label = `Total: Rp ${new Intl.NumberFormat('id-ID').format(value)}`
-              
+            label: function (context) {
+              const value = context.parsed.y;
+              let label = `Total: Rp ${new Intl.NumberFormat("id-ID").format(value)}`;
+
               if (context.dataIndex > 0) {
-                const prevValue = context.dataset.data[context.dataIndex - 1]
-                const change = ((value - prevValue) / prevValue) * 100
-                const changeText = change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`
-                label += ` (${changeText})`
+                const prevValue = context.dataset.data[context.dataIndex - 1];
+                const change = ((value - prevValue) / prevValue) * 100;
+                const changeText =
+                  change > 0
+                    ? `+${change.toFixed(2)}%`
+                    : `${change.toFixed(2)}%`;
+                label += ` (${changeText})`;
               }
-              
-              return label
-            }
-          }
-        }
+
+              return label;
+            },
+          },
+        },
       },
       scales: {
         y: {
           beginAtZero: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
+            color: "rgba(0, 0, 0, 0.05)",
           },
           ticks: {
-            callback: function(value) {
-              return 'Rp ' + (value / 1000000).toFixed(0) + 'M'
+            callback: function (value) {
+              return "Rp " + (value / 1000000).toFixed(0) + "M";
             },
-            font: { size: 11, family: 'Inter' },
-            color: '#4a5568'
-          }
+            font: { size: 11, family: "Inter" },
+            color: "#4a5568",
+          },
         },
         x: {
           grid: {
-            display: false
+            display: false,
           },
           ticks: {
-            font: { size: 11, family: 'Inter' },
-            color: '#4a5568'
-          }
-        }
-      }
-    }
+            font: { size: 11, family: "Inter" },
+            color: "#4a5568",
+          },
+        },
+      },
+    };
 
     const formatNumber = (num) => {
-      return new Intl.NumberFormat('id-ID').format(num)
-    }
+      return new Intl.NumberFormat("id-ID").format(num);
+    };
 
     const formatDate = (dateStr) => {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const [year, month] = dateStr.split('-')
-      return `${months[parseInt(month) - 1]} ${year}`
-    }
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const [year, month] = dateStr.split("-");
+      return `${months[parseInt(month) - 1]} ${year}`;
+    };
 
     const loadDashboard = async () => {
       try {
-        const response = await axios.get('/api/dashboard')
-        dashboardData.value = response.data
-        
-        // Group assets into major categories
-        const groupedData = {}
-        const categoryMapping = {
-          'Stock': { category: 'Stock', color: '#3b82f6' },
-          'Mutual Fund': { category: 'Mutual Fund', color: '#8b5cf6' },
-          'Gold': { category: 'Gold', color: '#f59e0b' },
-          'Bitcoin': { category: 'Bitcoin', color: '#f97316' },
-          'USD': { category: 'Cash', color: '#10b981' },
-          'Bank': { category: 'Cash', color: '#10b981' },
-          'RDN': { category: 'Cash', color: '#10b981' }
-        }
-        
-        response.data.allocations.forEach(item => {
-          const mapping = categoryMapping[item.name] || { category: item.name, color: '#6b7280' }
-          const category = mapping.category
-          
+        // Load category mappings first
+        const mappingsResponse = await axios.get("/api/asset-class-categories");
+        const mappings = {};
+        mappingsResponse.data.forEach((m) => {
+          mappings[m.asset_class_name] = m.category_name;
+        });
+        categoryMappingData.value = mappings;
+
+        const response = await axios.get("/api/dashboard");
+        dashboardData.value = response.data;
+
+        // Group assets into categories dynamically
+        const groupedData = {};
+        const defaultColors = [
+          "#3b82f6",
+          "#8b5cf6",
+          "#f59e0b",
+          "#f97316",
+          "#10b981",
+          "#ef4444",
+          "#6366f1",
+          "#ec4899",
+          "#14b8a6",
+          "#84cc16",
+        ];
+
+        response.data.allocations.forEach((item) => {
+          const category = mappings[item.name] || item.name;
+
           if (!groupedData[category]) {
+            const colorIndex =
+              Object.keys(groupedData).length % defaultColors.length;
             groupedData[category] = {
               amount: 0,
-              color: mapping.color,
-              details: []
-            }
+              color: defaultColors[colorIndex],
+              details: [],
+            };
           }
-          
-          groupedData[category].amount += item.amount
+
+          groupedData[category].amount += item.amount;
           groupedData[category].details.push({
             name: item.name,
             amount: item.amount,
-            percentage: item.percentage
-          })
-        })
-        
-        const labels = Object.keys(groupedData)
-        const data = labels.map(label => groupedData[label].amount)
-        const colors = labels.map(label => groupedData[label].color)
-        
+            percentage: item.percentage,
+          });
+        });
+
+        const labels = Object.keys(groupedData);
+        const data = labels.map((label) => groupedData[label].amount);
+        const colors = labels.map((label) => groupedData[label].color);
+
         pieChartData.value = {
           labels: labels,
-          datasets: [{
-            data: data,
-            backgroundColor: colors,
-            borderWidth: 4,
-            borderColor: '#1a202c',
-            hoverOffset: 20,
-            hoverBorderWidth: 5,
-            hoverBorderColor: '#fff'
-          }]
-        }
+          datasets: [
+            {
+              data: data,
+              backgroundColor: colors,
+              borderWidth: 4,
+              borderColor: "#1a202c",
+              hoverOffset: 20,
+              hoverBorderWidth: 5,
+              hoverBorderColor: "#fff",
+            },
+          ],
+        };
       } catch (error) {
-        console.error('Error loading dashboard:', error)
+        console.error("Error loading dashboard:", error);
       }
-    }
+    };
 
     const loadGrowthData = async () => {
       try {
-        const response = await axios.get('/api/history')
-        historyData.value = response.data
-        
+        const response = await axios.get("/api/history");
+        historyData.value = response.data;
+
         growthChartData.value = {
-          labels: response.data.map(h => formatDate(h.date)),
-          datasets: [{
-            label: 'Total Assets',
-            data: response.data.map(h => h.total),
-            borderColor: '#2d3748',
-            backgroundColor: 'rgba(45, 55, 72, 0.1)',
-            tension: 0.4,
-            fill: true,
-            borderWidth: 3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#2d3748',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBorderWidth: 3
-          }]
-        }
+          labels: response.data.map((h) => formatDate(h.date)),
+          datasets: [
+            {
+              label: "Total Assets",
+              data: response.data.map((h) => h.total),
+              borderColor: "#2d3748",
+              backgroundColor: "rgba(45, 55, 72, 0.1)",
+              tension: 0.4,
+              fill: true,
+              borderWidth: 3,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              pointBackgroundColor: "#2d3748",
+              pointBorderColor: "#fff",
+              pointBorderWidth: 2,
+              pointHoverBorderWidth: 3,
+            },
+          ],
+        };
       } catch (error) {
-        console.error('Error loading growth data:', error)
+        console.error("Error loading growth data:", error);
       }
-    }
+    };
 
     onMounted(async () => {
-      await loadDashboard()
-      await loadGrowthData()
-    })
+      await loadDashboard();
+      await loadGrowthData();
+    });
 
-    return { 
-      dashboardData, 
-      pieChartData, 
+    return {
+      dashboardData,
+      pieChartData,
       growthChartData,
-      pieChartOptions, 
+      pieChartOptions,
       growthChartOptions,
       monthlyGrowth,
       growthClass,
       groupedAllocations,
-      formatNumber 
-    }
-  }
-}
+      formatNumber,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -388,7 +479,9 @@ export default {
   display: flex;
   align-items: center;
   gap: 24px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -561,15 +654,15 @@ export default {
   .charts-row {
     grid-template-columns: 1fr;
   }
-  
+
   .stat-card {
     padding: 24px;
   }
-  
+
   .stat-icon {
     font-size: 40px;
   }
-  
+
   .stat-content .value {
     font-size: 22px;
   }

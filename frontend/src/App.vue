@@ -22,7 +22,10 @@
         📱 Telegram
       </button>
       <button class="tab" :class="{ active: activeTab === 'classes' }" @click="activeTab = 'classes'">
-        🏷️ Categories
+        🏷️ Asset Class
+      </button>
+      <button class="tab" :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">
+        📂 Categories
       </button>
     </div>
 
@@ -49,6 +52,10 @@
     <div v-if="activeTab === 'classes'">
       <AssetClassManager @updated="refreshDashboard" />
     </div>
+
+    <div v-if="activeTab === 'categories'">
+      <CategoryManager @updated="refreshDashboard" />
+    </div>
   </div>
 </template>
 
@@ -60,6 +67,7 @@ import DividendTracker from './components/DividendTracker.vue'
 import Rebalancing from './components/Rebalancing.vue'
 import TelegramSettings from './components/TelegramSettings.vue'
 import AssetClassManager from './components/AssetClassManager.vue'
+import CategoryManager from './components/CategoryManager.vue'
 
 export default {
   name: 'App',
@@ -69,7 +77,8 @@ export default {
     DividendTracker,
     Rebalancing,
     TelegramSettings,
-    AssetClassManager
+    AssetClassManager,
+    CategoryManager
   },
   setup() {
     const activeTab = ref('dashboard')

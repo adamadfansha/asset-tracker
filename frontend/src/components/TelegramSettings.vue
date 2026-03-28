@@ -3,28 +3,32 @@
     <div class="card">
       <h2>📱 Telegram Report Settings</h2>
       <p class="subtitle">Configure automatic financial reports via Telegram</p>
-      
+
       <div class="settings-form">
         <div class="input-group">
           <label>🤖 Bot Token</label>
-          <input 
-            type="text" 
-            v-model="settings.bot_token" 
+          <input
+            type="text"
+            v-model="settings.bot_token"
             placeholder="Enter your Telegram Bot Token"
             class="input-field"
           />
-          <small class="hint">Get your bot token from @BotFather on Telegram</small>
+          <small class="hint"
+            >Get your bot token from @BotFather on Telegram</small
+          >
         </div>
 
         <div class="input-group">
           <label>💬 Chat ID (Default)</label>
-          <input 
-            type="text" 
-            v-model="settings.chat_id" 
+          <input
+            type="text"
+            v-model="settings.chat_id"
             placeholder="Enter default Chat ID"
             class="input-field"
           />
-          <small class="hint">Get your chat ID from @userinfobot on Telegram</small>
+          <small class="hint"
+            >Get your chat ID from @userinfobot on Telegram</small
+          >
         </div>
 
         <div class="checkbox-group">
@@ -35,15 +39,20 @@
         </div>
 
         <div class="checkbox-group">
-          <label class="checkbox-label" :class="{ disabled: !settings.is_enabled }">
-            <input 
-              type="checkbox" 
-              v-model="settings.auto_send_enabled" 
+          <label
+            class="checkbox-label"
+            :class="{ disabled: !settings.is_enabled }"
+          >
+            <input
+              type="checkbox"
+              v-model="settings.auto_send_enabled"
               :disabled="!settings.is_enabled"
             />
             <span>Auto-send report on last day of month (23:00)</span>
           </label>
-          <small v-if="!settings.is_enabled" class="hint-warning">Enable Telegram Integration first to use this feature</small>
+          <small v-if="!settings.is_enabled" class="hint-warning"
+            >Enable Telegram Integration first to use this feature</small
+          >
         </div>
 
         <button @click="saveSettings" class="btn btn-primary">
@@ -55,24 +64,32 @@
     <div class="card">
       <h2>📤 Send Report Now</h2>
       <p class="subtitle">Send financial report to a specific Telegram chat</p>
-      
+
       <div class="send-form">
         <div class="input-group">
           <label>💬 Chat ID</label>
-          <input 
-            type="text" 
-            v-model="sendChatId" 
+          <input
+            type="text"
+            v-model="sendChatId"
             placeholder="Enter Chat ID to send report"
             class="input-field"
           />
         </div>
 
-        <button @click="sendReport" class="btn btn-success" :disabled="!settings.is_enabled || !sendChatId || sending">
+        <button
+          @click="sendReport"
+          class="btn btn-success"
+          :disabled="!settings.is_enabled || !sendChatId || sending"
+        >
           <span v-if="!sending">📨 Send Report Now</span>
           <span v-else>⏳ Sending...</span>
         </button>
 
-        <small v-if="!settings.is_enabled" class="hint-warning" style="margin-top: 12px; display: block;">
+        <small
+          v-if="!settings.is_enabled"
+          class="hint-warning"
+          style="margin-top: 12px; display: block"
+        >
           Enable Telegram Integration first to send reports
         </small>
       </div>
@@ -98,84 +115,86 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, onMounted } from "vue";
+import axios from "axios";
 
 export default {
-  name: 'TelegramSettings',
+  name: "TelegramSettings",
   setup() {
     const settings = ref({
-      bot_token: '',
-      chat_id: '',
+      bot_token: "",
+      chat_id: "",
       is_enabled: false,
-      auto_send_enabled: false
-    })
-    const sendChatId = ref('')
-    const sending = ref(false)
-    const lastSent = ref(null)
+      auto_send_enabled: false,
+    });
+    const sendChatId = ref("");
+    const sending = ref(false);
+    const lastSent = ref(null);
 
     const loadSettings = async () => {
       try {
-        const response = await axios.get('/api/telegram/settings')
+        const response = await axios.get("/api/telegram/settings");
         settings.value = {
           bot_token: response.data.bot_token,
-          chat_id: response.data.chat_id || '',
+          chat_id: response.data.chat_id || "",
           is_enabled: response.data.is_enabled,
-          auto_send_enabled: response.data.auto_send_enabled
-        }
-        lastSent.value = response.data.last_sent_at
-        sendChatId.value = response.data.chat_id || ''
+          auto_send_enabled: response.data.auto_send_enabled,
+        };
+        lastSent.value = response.data.last_sent_at;
+        sendChatId.value = response.data.chat_id || "";
       } catch (error) {
-        console.error('Error loading settings:', error)
-        alert('Failed to load Telegram settings')
+        console.error("Error loading settings:", error);
+        alert("Failed to load Telegram settings");
       }
-    }
+    };
 
     const saveSettings = async () => {
       try {
-        await axios.post('/api/telegram/settings', {
+        await axios.post("/api/telegram/settings", {
           bot_token: settings.value.bot_token,
           chat_id: settings.value.chat_id || null,
           is_enabled: settings.value.is_enabled,
-          auto_send_enabled: settings.value.auto_send_enabled
-        })
-        alert('Settings saved successfully!')
-        await loadSettings()
+          auto_send_enabled: settings.value.auto_send_enabled,
+        });
+        alert("Settings saved successfully!");
+        await loadSettings();
       } catch (error) {
-        console.error('Error saving settings:', error)
-        alert('Failed to save settings')
+        console.error("Error saving settings:", error);
+        alert("Failed to save settings");
       }
-    }
+    };
 
     const sendReport = async () => {
       if (!sendChatId.value) {
-        alert('Please enter a Chat ID')
-        return
+        alert("Please enter a Chat ID");
+        return;
       }
 
-      sending.value = true
+      sending.value = true;
       try {
-        await axios.post('/api/telegram/send', {
-          chat_id: sendChatId.value
-        })
-        alert('Report sent successfully! Check your Telegram.')
-        await loadSettings()
+        await axios.post("/api/telegram/send", {
+          chat_id: sendChatId.value,
+        });
+        alert("Report sent successfully! Check your Telegram.");
+        await loadSettings();
       } catch (error) {
-        console.error('Error sending report:', error)
-        alert('Failed to send report. Please check your bot token and chat ID.')
+        console.error("Error sending report:", error);
+        alert(
+          "Failed to send report. Please check your bot token and chat ID.",
+        );
       } finally {
-        sending.value = false
+        sending.value = false;
       }
-    }
+    };
 
     const formatDate = (dateStr) => {
-      if (!dateStr) return 'Never'
-      return new Date(dateStr).toLocaleString('id-ID')
-    }
+      if (!dateStr) return "Never";
+      return new Date(dateStr).toLocaleString("id-ID");
+    };
 
     onMounted(async () => {
-      await loadSettings()
-    })
+      await loadSettings();
+    });
 
     return {
       settings,
@@ -184,10 +203,10 @@ export default {
       lastSent,
       saveSettings,
       sendReport,
-      formatDate
-    }
-  }
-}
+      formatDate,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -368,7 +387,7 @@ export default {
   background: white;
   padding: 2px 8px;
   border-radius: 4px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 13px;
   color: #e53e3e;
 }
