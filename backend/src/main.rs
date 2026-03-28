@@ -64,7 +64,9 @@ async fn main() {
         .route("/api/telegram/settings", get(get_telegram_settings))
         .route("/api/telegram/settings", post(update_telegram_settings))
         .route("/api/telegram/send", post(send_telegram_report))
+        .route("/api/telegram/send-pdf", post(send_pdf_report))
         .layer(CorsLayer::permissive())
+        .layer(axum::extract::DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit for PDF uploads
         .with_state(state.clone());
     
     // Start scheduler for auto-send

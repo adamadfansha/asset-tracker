@@ -83,18 +83,6 @@ pub struct CreateCategory {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DeleteCategory {
-    pub category_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct AssetClassCategory {
-    pub id: i32,
-    pub asset_class_id: i32,
-    pub category_name: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct UpdateAssetClassCategory {
     pub asset_class_id: i32,
     pub category_name: String,
@@ -126,4 +114,11 @@ pub struct UpdateTelegramSettings {
 #[derive(Debug, Deserialize)]
 pub struct SendTelegramRequest {
     pub chat_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SendPdfRequest {
+    pub chat_id: String,
+    pub pdf_base64: String,
+    pub filename: String,
 }

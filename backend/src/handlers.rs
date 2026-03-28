@@ -260,13 +260,11 @@ pub async fn get_dashboard_data(
     struct SnapshotRow {
         name: String,
         amount: rust_decimal::Decimal,
-        snapshot_month: i32,
-        snapshot_year: i32,
     }
     
     let latest_snapshots = sqlx::query_as::<_, SnapshotRow>(
         r#"
-        SELECT ac.name, s.amount, s.snapshot_month, s.snapshot_year
+        SELECT ac.name, s.amount
         FROM asset_snapshots s
         INNER JOIN asset_classes ac ON s.asset_class_id = ac.id
         WHERE (s.snapshot_year, s.snapshot_month) = (
@@ -733,10 +731,10 @@ pub async fn send_telegram_report(
         per_asset: std::collections::HashMap::new(),
     });
     
-    // Format message
+    // Format text message
     let message = format_telegram_message(&dashboard_data.0, &previous_data);
     
-    // Send to Telegram
+    // Send text message to Telegram
     let client = reqwest::Client::new();
     let url = format!("https://api.telegram.org/bot{}/sendMessage", settings.bot_token);
     
@@ -823,6 +821,58 @@ fn format_rupiah(amount: f64) -> String {
     }
     
     result
+}
+
+pub async fn send_pdf_report(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<SendPdfRequest>
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    let settings = sqlx::query_as::<_, TelegramSettings>(
+        "SELECT id, bot_token, chat_id, is_enabled, auto_send_enabled, last_sent_at FROM telegram_settings LIMIT 1"
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if settings.bot_token.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    use base64::Engine;
+    let pdf_bytes = base64::engine::general_purpose::STANDARD
+        .decode(&payload.pdf_base64)
+        .map_err(|e| {
+            eprintln!("Base64 decode error: {:?}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    let client = reqwest::Client::new();
+    let url = format!("https://api.telegram.org/bot{}/sendDocument", settings.bot_token);
+
+    let part = reqwest::multipart::Part::bytes(pdf_bytes)
+        .file_name(payload.filename.clone())
+        .mime_str("application/pdf")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("chat_id", payload.chat_id.clone())
+        .text("caption", "📊 Wealth Portfolio Report (PDF)")
+        .part("document", part);
+
+    let response = client
+        .post(&url)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if !response.status().is_success() {
+        let body = response.text().await.unwrap_or_default();
+        eprintln!("Telegram error: {}", body);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    Ok((StatusCode::OK, Json(serde_json::json!({"success": true}))))
 }
 
 fn format_telegram_message(data: &serde_json::Value, previous: &PreviousMonthData) -> String {
