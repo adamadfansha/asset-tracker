@@ -3,23 +3,29 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use std::sync::Arc;
 use rust_decimal::prelude::*;
+use std::sync::Arc;
 use crate::{AppState, models::*};
+
+macro_rules! db_err {
+    ($msg:expr) => {
+        |e| {
+            tracing::error!("{}: {:?}", $msg, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    };
+}
 
 pub async fn get_asset_classes(
     State(state): State<Arc<AppState>>
 ) -> Result<Json<Vec<AssetClass>>, StatusCode> {
     let classes = sqlx::query_as::<_, AssetClass>(
-        "SELECT id, name, is_active FROM asset_classes WHERE is_active = true ORDER BY name"
+        "SELECT id, name, is_active, asset_type, unit, price_api_symbol FROM asset_classes WHERE is_active = true ORDER BY name"
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching asset classes: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching asset classes"))?;
+
     Ok(Json(classes))
 }
 
@@ -33,53 +39,37 @@ pub async fn create_asset_class(
     .bind(&payload.name)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error creating asset class: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error creating asset class"))?;
+
     Ok((StatusCode::CREATED, Json(class)))
 }
 pub async fn delete_asset_class(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<i32>
 ) -> Result<StatusCode, StatusCode> {
-    // Check if there are any snapshots with non-zero amounts using this asset class
     let count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM asset_snapshots WHERE asset_class_id = $1 AND amount > 0"
     )
     .bind(id)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error checking snapshots: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(db_err!("Error checking snapshots"))?;
 
     if count.0 > 0 {
-        eprintln!("Cannot delete asset class with existing non-zero snapshots");
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    // Delete all snapshots with zero amounts for this asset class
     sqlx::query("DELETE FROM asset_snapshots WHERE asset_class_id = $1 AND amount = 0")
         .bind(id)
         .execute(&state.db)
         .await
-        .map_err(|e| {
-            eprintln!("Error deleting zero snapshots: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .map_err(db_err!("Error deleting zero snapshots"))?;
 
-    // Delete the asset class (CASCADE will delete asset_class_categories)
     sqlx::query("DELETE FROM asset_classes WHERE id = $1")
         .bind(id)
         .execute(&state.db)
         .await
-        .map_err(|e| {
-            eprintln!("Error deleting asset class: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .map_err(db_err!("Error deleting asset class"))?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -92,11 +82,8 @@ pub async fn get_snapshots(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching snapshots: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching snapshots"))?;
+
     Ok(Json(snapshots))
 }
 
@@ -122,27 +109,54 @@ pub async fn bulk_create_snapshot(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<BulkCreateSnapshot>
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    use crate::price_service;
+    
     let mut tx = state.db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     for (asset_name, amount) in payload.assets.iter() {
         let asset_class = sqlx::query_as::<_, AssetClass>(
-            "SELECT id, name, is_active FROM asset_classes WHERE name = $1"
+            "SELECT id, name, is_active, asset_type, unit, price_api_symbol FROM asset_classes WHERE name = $1"
         )
         .bind(asset_name)
         .fetch_one(&mut *tx)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
         
+        // Get unit_amount if provided and non-zero
+        let unit_amount = payload.unit_amounts.as_ref()
+            .and_then(|units| units.get(asset_name).copied())
+            .filter(|&u| u != 0.0); // treat exactly 0 as "not provided" — keep existing IDR value
+        
+        // Only convert if unit_amount is explicitly provided and > 0
+        let final_amount = if let Some(unit_amt) = unit_amount {
+            let asset_type = asset_class.asset_type.as_deref().unwrap_or("CURRENCY");
+            if asset_type != "CURRENCY" {
+                price_service::convert_to_idr(
+                    &state.db,
+                    unit_amt,
+                    asset_type,
+                    asset_class.price_api_symbol.as_deref(),
+                )
+                .await
+                .unwrap_or(*amount)
+            } else {
+                *amount
+            }
+        } else {
+            *amount // unit empty → keep the IDR amount as-is
+        };
+        
         sqlx::query(
-            "INSERT INTO asset_snapshots (snapshot_month, snapshot_year, asset_class_id, amount) 
-             VALUES ($1, $2, $3, $4)
+            "INSERT INTO asset_snapshots (snapshot_month, snapshot_year, asset_class_id, amount, unit_amount) 
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (snapshot_year, snapshot_month, asset_class_id) 
-             DO UPDATE SET amount = $4"
+             DO UPDATE SET amount = $4, unit_amount = $5"
         )
         .bind(payload.snapshot_month)
         .bind(payload.snapshot_year)
         .bind(asset_class.id)
-        .bind(amount)
+        .bind(final_amount)
+        .bind(unit_amount)
         .execute(&mut *tx)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -194,11 +208,8 @@ pub async fn get_dividends(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching dividends: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching dividends"))?;
+
     Ok(Json(dividends))
 }
 
@@ -261,7 +272,7 @@ pub async fn get_dashboard_data(
         name: String,
         amount: rust_decimal::Decimal,
     }
-    
+
     let latest_snapshots = sqlx::query_as::<_, SnapshotRow>(
         r#"
         SELECT ac.name, s.amount
@@ -277,13 +288,10 @@ pub async fn get_dashboard_data(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching dashboard data: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching dashboard data"))?;
+
     let total: f64 = latest_snapshots.iter().map(|s| s.amount.to_f64().unwrap_or(0.0)).sum();
-    
+
     let allocations: Vec<_> = latest_snapshots.iter().map(|s| {
         let amount_f64 = s.amount.to_f64().unwrap_or(0.0);
         serde_json::json!({
@@ -292,15 +300,12 @@ pub async fn get_dashboard_data(
             "percentage": if total > 0.0 { (amount_f64 / total) * 100.0 } else { 0.0 }
         })
     }).collect();
-    
+
     let total_dividends: rust_decimal::Decimal = sqlx::query_scalar("SELECT COALESCE(SUM(amount), 0) FROM dividends")
         .fetch_one(&state.db)
         .await
-        .map_err(|e| {
-            eprintln!("Error fetching dividends: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    
+        .map_err(db_err!("Error fetching total dividends"))?;
+
     Ok(Json(serde_json::json!({
         "total": total,
         "allocations": allocations,
@@ -317,11 +322,12 @@ pub async fn get_history(
         snapshot_year: i32,
         name: String,
         amount: rust_decimal::Decimal,
+        unit_amount: Option<rust_decimal::Decimal>,
     }
-    
+
     let history = sqlx::query_as::<_, HistoryRow>(
         r#"
-        SELECT s.snapshot_month, s.snapshot_year, ac.name, s.amount
+        SELECT s.snapshot_month, s.snapshot_year, ac.name, s.amount, s.unit_amount
         FROM asset_snapshots s
         INNER JOIN asset_classes ac ON s.asset_class_id = ac.id
         ORDER BY s.snapshot_year ASC, s.snapshot_month ASC, ac.name ASC
@@ -329,30 +335,31 @@ pub async fn get_history(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching history: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
-    let mut grouped: std::collections::HashMap<String, std::collections::HashMap<String, f64>> = std::collections::HashMap::new();
-    
+    .map_err(db_err!("Error fetching history"))?;
+
+    let mut grouped: std::collections::HashMap<String, (std::collections::HashMap<String, f64>, std::collections::HashMap<String, f64>)> = std::collections::HashMap::new();
+
     for row in history {
         let key = format!("{}-{:02}", row.snapshot_year, row.snapshot_month);
         let amount_f64 = row.amount.to_f64().unwrap_or(0.0);
-        grouped.entry(key).or_insert_with(std::collections::HashMap::new).insert(row.name, amount_f64);
+        let unit_f64 = row.unit_amount.and_then(|u| u.to_f64()).unwrap_or(0.0);
+        let entry = grouped.entry(key).or_insert_with(|| (std::collections::HashMap::new(), std::collections::HashMap::new()));
+        entry.0.insert(row.name.clone(), amount_f64);
+        entry.1.insert(row.name, unit_f64);
     }
-    
-    let mut result: Vec<_> = grouped.into_iter().map(|(date, assets)| {
+
+    let mut result: Vec<_> = grouped.into_iter().map(|(date, (assets, unit_amounts))| {
         let total: f64 = assets.values().sum();
         serde_json::json!({
             "date": date,
             "assets": assets,
+            "unit_amounts": unit_amounts,
             "total": total
         })
     }).collect();
-    
+
     result.sort_by(|a, b| a["date"].as_str().cmp(&b["date"].as_str()));
-    
+
     Ok(Json(serde_json::json!(result)))
 }
 
@@ -365,11 +372,8 @@ pub async fn get_categories(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching categories: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching categories"))?;
+
     Ok(Json(categories))
 }
 
@@ -383,11 +387,8 @@ pub async fn create_category(
     .bind(&payload.category_name)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error creating category: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error creating category"))?;
+
     Ok((StatusCode::CREATED, Json(category)))
 }
 
@@ -395,17 +396,13 @@ pub async fn delete_category(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>
 ) -> Result<StatusCode, StatusCode> {
-    // Check if any asset classes are mapped to this category
     let category = sqlx::query_as::<_, AllocationPreference>(
         "SELECT id, category_name, target_percentage FROM allocation_preferences WHERE id = $1"
     )
     .bind(id)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching category: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(db_err!("Error fetching category"))?;
 
     let count: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM asset_class_categories WHERE category_name = $1"
@@ -413,13 +410,9 @@ pub async fn delete_category(
     .bind(&category.category_name)
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error checking category usage: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(db_err!("Error checking category usage"))?;
 
     if count.0 > 0 {
-        eprintln!("Cannot delete category with mapped asset classes");
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -427,10 +420,7 @@ pub async fn delete_category(
         .bind(id)
         .execute(&state.db)
         .await
-        .map_err(|e| {
-            eprintln!("Error deleting category: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .map_err(db_err!("Error deleting category"))?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -444,11 +434,8 @@ pub async fn get_allocation_preferences(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching allocation preferences: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching allocation preferences"))?;
+
     Ok(Json(preferences))
 }
 
@@ -494,7 +481,7 @@ pub async fn get_asset_class_categories(
         asset_class_name: String,
         category_name: Option<String>,
     }
-    
+
     let mappings = sqlx::query_as::<_, AssetClassWithCategory>(
         r#"
         SELECT 
@@ -509,19 +496,16 @@ pub async fn get_asset_class_categories(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching asset class categories: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching asset class categories"))?;
+
     let result: Vec<_> = mappings.iter().map(|m| {
         serde_json::json!({
             "asset_class_id": m.asset_class_id,
             "asset_class_name": m.asset_class_name,
-            "category_name": m.category_name.as_ref().unwrap_or(&"Other".to_string())
+            "category_name": m.category_name.as_deref().unwrap_or("Other")
         })
     }).collect();
-    
+
     Ok(Json(result))
 }
 
@@ -575,10 +559,7 @@ pub async fn calculate_rebalancing(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching current assets for rebalancing: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(db_err!("Error fetching current assets for rebalancing"))?;
     
     // Group by category
     let mut grouped_assets: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
@@ -586,8 +567,8 @@ pub async fn calculate_rebalancing(
     
     for asset in current_assets.iter() {
         let amount = asset.amount.to_f64().unwrap_or(0.0);
-        let category = asset.category_name.as_ref().unwrap_or(&"Other".to_string()).clone();
-        
+        let category = asset.category_name.as_deref().unwrap_or("Other").to_string();
+
         *grouped_assets.entry(category.clone()).or_insert(0.0) += amount;
         category_breakdown.entry(category).or_insert_with(Vec::new).push((asset.name.clone(), amount));
     }
@@ -604,10 +585,7 @@ pub async fn calculate_rebalancing(
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching preferences for rebalancing: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(db_err!("Error fetching preferences for rebalancing"))?;
     
     // Calculate target amounts and allocations
     let mut recommendations = Vec::new();
@@ -676,11 +654,8 @@ pub async fn get_telegram_settings(
     )
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching telegram settings: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching telegram settings"))?;
+
     Ok(Json(settings))
 }
 
@@ -712,13 +687,9 @@ pub async fn send_telegram_report(
     )
     .fetch_one(&state.db)
     .await
-    .map_err(|e| {
-        eprintln!("Error fetching telegram settings for report: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    
+    .map_err(db_err!("Error fetching telegram settings for report"))?;
+
     if settings.bot_token.is_empty() {
-        eprintln!("Telegram bot token is empty");
         return Err(StatusCode::BAD_REQUEST);
     }
     
@@ -932,4 +903,98 @@ fn format_telegram_message(data: &serde_json::Value, previous: &PreviousMonthDat
     message.push_str(&format!("\n📅 Generated: {} WIB", jakarta_time.format("%d %B %Y, %H:%M")));
     
     message
+}
+
+// Price Service Handlers
+pub async fn get_current_prices(
+    State(state): State<Arc<AppState>>
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    use crate::price_service;
+    
+    let mut prices = serde_json::Map::new();
+    
+    // Fetch Bitcoin price
+    match price_service::get_bitcoin_price(&state.db).await {
+        Ok(price) => {
+            prices.insert("bitcoin".to_string(), serde_json::json!({
+                "symbol": "BTC",
+                "price_idr": price,
+                "unit": "BTC"
+            }));
+        }
+        Err(e) => {
+            eprintln!("Error fetching Bitcoin price: {:?}", e);
+        }
+    }
+    
+    // Fetch Gold price
+    match price_service::get_gold_price(&state.db).await {
+        Ok(price) => {
+            prices.insert("gold".to_string(), serde_json::json!({
+                "symbol": "XAU",
+                "price_idr": price,
+                "unit": "gram"
+            }));
+        }
+        Err(e) => {
+            eprintln!("Error fetching Gold price: {:?}", e);
+        }
+    }
+
+    // Fetch USD/IDR rate
+    match price_service::get_usd_rate(&state.db).await {
+        Ok(rate) => {
+            prices.insert("usd".to_string(), serde_json::json!({
+                "symbol": "USD",
+                "price_idr": rate,
+                "unit": "USD"
+            }));
+        }
+        Err(e) => {
+            eprintln!("Error fetching USD rate: {:?}", e);
+        }
+    }
+    
+    Ok(Json(serde_json::json!(prices)))
+}
+
+pub async fn convert_unit_to_idr(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<ConvertRequest>
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    use crate::price_service;
+    
+    // Get asset class info
+    let asset_class = sqlx::query_as::<_, AssetClass>(
+        "SELECT id, name, is_active, asset_type, unit, price_api_symbol FROM asset_classes WHERE id = $1"
+    )
+    .bind(payload.asset_class_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        eprintln!("Error fetching asset class: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    let asset_type = asset_class.asset_type.as_deref().unwrap_or("CURRENCY");
+    let price_api_symbol = asset_class.price_api_symbol.as_deref();
+    
+    let idr_amount = price_service::convert_to_idr(
+        &state.db,
+        payload.unit_amount,
+        asset_type,
+        price_api_symbol,
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("Error converting to IDR: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(serde_json::json!({
+        "unit_amount": payload.unit_amount,
+        "idr_amount": idr_amount,
+        "asset_type": asset_type,
+        "unit": asset_class.unit.unwrap_or("IDR".to_string())
+    })))
 }

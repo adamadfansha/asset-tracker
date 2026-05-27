@@ -6,6 +6,9 @@ pub struct AssetClass {
     pub id: i32,
     pub name: String,
     pub is_active: bool,
+    pub asset_type: Option<String>,
+    pub unit: Option<String>,
+    pub price_api_symbol: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -20,6 +23,7 @@ pub struct AssetSnapshot {
     pub snapshot_year: i32,
     pub asset_class_id: i32,
     pub amount: f64,
+    pub unit_amount: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +32,7 @@ pub struct CreateSnapshot {
     pub snapshot_year: i32,
     pub asset_class_id: i32,
     pub amount: f64,
+    pub unit_amount: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +40,7 @@ pub struct BulkCreateSnapshot {
     pub snapshot_month: i32,
     pub snapshot_year: i32,
     pub assets: std::collections::HashMap<String, f64>,
+    pub unit_amounts: Option<std::collections::HashMap<String, f64>>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -121,4 +127,18 @@ pub struct SendPdfRequest {
     pub chat_id: String,
     pub pdf_base64: String,
     pub filename: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct PriceInfo {
+    pub symbol: String,
+    pub price_idr: f64,
+    pub last_updated: chrono::NaiveDateTime,
+    pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConvertRequest {
+    pub unit_amount: f64,
+    pub asset_class_id: i32,
 }

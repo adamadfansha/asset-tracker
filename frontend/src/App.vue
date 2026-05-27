@@ -62,7 +62,7 @@
     </div>
 
     <div v-if="activeTab === 'assets'">
-      <AssetManager @updated="refreshDashboard" />
+      <AssetManagerRealtime @updated="refreshDashboard" />
     </div>
 
     <div v-if="activeTab === 'dividends'">
@@ -90,7 +90,7 @@
 <script>
 import { ref } from "vue";
 import Dashboard from "./components/Dashboard.vue";
-import AssetManager from "./components/AssetManager.vue";
+import AssetManagerRealtime from "./components/AssetManagerRealtime.vue";
 import DividendTracker from "./components/DividendTracker.vue";
 import Rebalancing from "./components/Rebalancing.vue";
 import TelegramSettings from "./components/TelegramSettings.vue";
@@ -101,7 +101,7 @@ export default {
   name: "App",
   components: {
     Dashboard,
-    AssetManager,
+    AssetManagerRealtime,
     DividendTracker,
     Rebalancing,
     TelegramSettings,
