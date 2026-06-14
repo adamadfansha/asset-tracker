@@ -116,21 +116,7 @@
 <script>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import {
-  Chart as ChartJS,
-  ArcElement,
-  DoughnutController,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  LineController,
-} from "chart.js";
 
 export default {
   name: "TelegramSettings",
@@ -181,19 +167,6 @@ export default {
     };
 
     const generateDashboardPdf = async () => {
-      ChartJS.register(
-        ArcElement,
-        DoughnutController,
-        Tooltip,
-        Legend,
-        CategoryScale,
-        LinearScale,
-        PointElement,
-        LineElement,
-        Filler,
-        LineController,
-      );
-
       const [dashRes, histRes, mappingsRes] = await Promise.all([
         axios.get("/api/dashboard"),
         axios.get("/api/history"),
@@ -202,300 +175,399 @@ export default {
       const dashboard = dashRes.data;
       const history = histRes.data;
       const mappings = {};
-      mappingsRes.data.forEach((m) => {
-        mappings[m.asset_class_name] = m.category_name;
-      });
+      mappingsRes.data.forEach((m) => { mappings[m.asset_class_name] = m.category_name; });
 
+      const fmtNum = (n) => new Intl.NumberFormat("id-ID").format(Math.round(n));
+      const fmtRp = (n) => "Rp " + fmtNum(n);
       const grouped = {};
       const total = dashboard.allocations.reduce((s, i) => s + i.amount, 0);
-      const chartColors = [
-        "#d4af37",
-        "#60a5fa",
-        "#a78bfa",
-        "#34d399",
-        "#f97316",
-        "#f87171",
-        "#38bdf8",
-        "#e879f9",
-      ];
+      const chartColors = ["#1a3a5c", "#2d6a4f", "#8b5cf6", "#d4af37", "#e76f51", "#0077b6", "#e63946", "#588157"];
       dashboard.allocations.forEach((item) => {
         const cat = mappings[item.name] || item.name;
         if (!grouped[cat]) {
-          grouped[cat] = {
-            total: 0,
-            color:
-              chartColors[Object.keys(grouped).length % chartColors.length],
-            details: [],
-          };
+          grouped[cat] = { total: 0, color: chartColors[Object.keys(grouped).length % chartColors.length], details: [] };
         }
         grouped[cat].total += item.amount;
         grouped[cat].details.push({ name: item.name, amount: item.amount });
       });
       const catLabels = Object.keys(grouped);
-      const catData = catLabels.map((k) => grouped[k].total);
-      const catColors = catLabels.map((k) => grouped[k].color);
 
-      // Render Doughnut Chart offscreen
-      const dc = document.createElement("canvas");
-      dc.width = 500;
-      dc.height = 500;
-      const dChart = new ChartJS(dc.getContext("2d"), {
-        type: "doughnut",
-        data: {
-          labels: catLabels,
-          datasets: [
-            {
-              data: catData,
-              backgroundColor: catColors,
-              borderWidth: 3,
-              borderColor: "#0a0a0f",
-              borderRadius: 4,
-              spacing: 3,
-            },
-          ],
-        },
-        options: {
-          responsive: false,
-          animation: false,
-          cutout: "68%",
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        },
-        plugins: [
-          {
-            id: "ct",
-            beforeDraw(chart) {
-              if (
-                !chart.data.datasets.length ||
-                !chart.data.datasets[0].data.length
-              )
-                return;
-              const { height, ctx } = chart;
-              ctx.restore();
-              const t = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-              ctx.font = `700 ${Math.round(height / 14)}px sans-serif`;
-              ctx.fillStyle = "#f0f0f5";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              const cx = (chart.chartArea.left + chart.chartArea.right) / 2,
-                cy = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-              ctx.fillText(
-                "Rp " + new Intl.NumberFormat("id-ID").format(t),
-                cx,
-                cy - 12,
-              );
-              ctx.font = `500 ${Math.round(height / 22)}px sans-serif`;
-              ctx.fillStyle = "#8a8a9a";
-              ctx.fillText("Total Assets", cx, cy + 18);
-              ctx.save();
-            },
-          },
-        ],
-      });
-      dChart.update();
-      const doughnutImg = dc.toDataURL("image/png");
-      dChart.destroy();
+      // === BUILD PDF ===
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const ml = 18, mr = 18, cw = pw - ml - mr;
+      let y = ml;
 
-      // Render Line Chart offscreen
-      const mnths = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
+      // === PAGE 1: STATEMENT OF FINANCIAL POSITION ===
+      // Gold header bar
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(0, 0, pw, 26, 'F');
+      pdf.setFillColor(212, 175, 55);
+      pdf.rect(0, 26, pw, 1.2, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18); pdf.setFont('helvetica', 'bold');
+      pdf.text('WEALTH PORTFOLIO', ml, 13);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(170, 190, 210);
+      pdf.text('Personal Financial Statement', ml, 20);
+      const ds = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      pdf.text(ds, pw - mr, 13, { align: 'right' });
+      pdf.setFontSize(8); pdf.text('CONFIDENTIAL', pw - mr, 20, { align: 'right' });
+      y = 36;
+
+      // Title
+      pdf.setTextColor(26, 58, 92);
+      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+      pdf.text('Statement of Financial Position', ml, y); y += 9;
+
+      // --- Summary Metrics Boxes ---
+      const bw = (cw - 8) / 3;
+      const metrics = [
+        { label: 'TOTAL ASSETS', value: fmtRp(total) },
+        { label: 'TOTAL DIVIDENDS', value: fmtRp(dashboard.total_dividends) },
+        { label: 'ASSET CATEGORIES', value: String(catLabels.length) },
       ];
-      const lc = document.createElement("canvas");
-      lc.width = 1100;
-      lc.height = 400;
-      const lChart = new ChartJS(lc.getContext("2d"), {
-        type: "line",
-        data: {
-          labels: history.map((h) => {
-            const [y, m] = h.date.split("-");
-            return `${mnths[parseInt(m) - 1]} ${y}`;
-          }),
-          datasets: [
-            {
-              data: history.map((h) => h.total),
-              borderColor: "#d4af37",
-              backgroundColor: "rgba(212,175,55,0.08)",
-              tension: 0.4,
-              fill: true,
-              borderWidth: 2.5,
-              pointRadius: 3,
-              pointBackgroundColor: "#d4af37",
-              pointBorderColor: "#0a0a0f",
-              pointBorderWidth: 2,
-            },
-          ],
-        },
-        options: {
-          responsive: false,
-          animation: false,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-          scales: {
-            y: {
-              beginAtZero: false,
-              grid: { color: "rgba(255,255,255,0.04)" },
-              border: { color: "rgba(255,255,255,0.06)" },
-              ticks: {
-                callback: (v) => "Rp " + (v / 1e6).toFixed(0) + "M",
-                color: "#8a8a9a",
-                font: { size: 11 },
-              },
-            },
-            x: {
-              grid: { display: false },
-              border: { color: "rgba(255,255,255,0.06)" },
-              ticks: { color: "#8a8a9a", font: { size: 10 }, maxRotation: 45 },
-            },
-          },
-        },
+      metrics.forEach((m, i) => {
+        const bx = ml + i * (bw + 4);
+        pdf.setFillColor(245, 247, 250);
+        pdf.rect(bx, y, bw, 22, 'F');
+        pdf.setDrawColor(225, 230, 238);
+        pdf.rect(bx, y, bw, 22);
+        pdf.setFillColor(212, 175, 55);
+        pdf.rect(bx, y, bw, 0.7, 'F');
+        pdf.setTextColor(110, 120, 140);
+        pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+        pdf.text(m.label, bx + 5, y + 7);
+        pdf.setTextColor(26, 58, 92);
+        pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+        pdf.text(m.value, bx + 5, y + 16);
       });
-      lChart.update();
-      const lineImg = lc.toDataURL("image/png");
-      lChart.destroy();
+      y += 30;
 
-      // Build HTML with embedded chart images
-      const container = document.createElement("div");
-      container.style.cssText =
-        "position:fixed;top:-9999px;left:-9999px;width:1200px;background:#0a0a0f;color:#f0f0f5;font-family:'Plus Jakarta Sans',sans-serif;padding:40px;";
-      document.body.appendChild(container);
+      // Divider
+      pdf.setDrawColor(212, 175, 55);
+      pdf.setLineWidth(0.3);
+      pdf.line(ml, y, pw - mr, y); y += 6;
 
-      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
-        <div style="font-size:28px;font-weight:800;color:#d4af37;">💎 Wealth Portfolio Report</div>
-        <div style="color:#8a8a9a;font-size:14px;">${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px;">
-          <div style="background:linear-gradient(135deg,rgba(212,175,55,0.08),rgba(18,18,26,0.95));border:1px solid rgba(212,175,55,0.12);padding:28px;border-radius:20px;">
-            <div style="font-size:11px;color:#5a5a6a;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Total Assets</div>
-            <div style="font-size:28px;font-weight:800;color:#d4af37;">Rp ${formatNumber(total)}</div></div>
-          <div style="background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(18,18,26,0.95));border:1px solid rgba(212,175,55,0.12);padding:28px;border-radius:20px;">
-            <div style="font-size:11px;color:#5a5a6a;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Total Dividends</div>
-            <div style="font-size:28px;font-weight:800;color:#d4af37;">Rp ${formatNumber(dashboard.total_dividends)}</div></div></div>
-        <div style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.06);padding:28px;border-radius:20px;margin-bottom:20px;">
-          <div style="font-size:18px;font-weight:700;margin-bottom:16px;">📈 Asset Growth Over Time</div>
-          <img src="${lineImg}" style="width:100%;height:auto;" /></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-          <div style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.06);padding:28px;border-radius:20px;">
-            <div style="font-size:18px;font-weight:700;margin-bottom:16px;">🎯 Current Asset Allocation</div>
-            <div style="display:flex;justify-content:center;margin-bottom:16px;"><img src="${doughnutImg}" style="width:300px;height:300px;" /></div>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">`;
-      catLabels.forEach((label, i) => {
-        const pct = total > 0 ? ((catData[i] / total) * 100).toFixed(1) : "0";
-        html += `<div style="display:flex;align-items:center;gap:6px;font-size:12px;"><div style="width:10px;height:10px;border-radius:50%;background:${catColors[i]};"></div><span style="color:#c0c0cc;">${label} ${pct}%</span></div>`;
-      });
-      html += `</div></div><div style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.06);padding:28px;border-radius:20px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:16px;">📋 Allocation Details</div>`;
-      Object.entries(grouped).forEach(([cat, data]) => {
-        const pct = total > 0 ? (data.total / total) * 100 : 0;
-        html += `<div style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-weight:700;font-size:14px;">${cat}</span><span style="font-weight:700;color:#d4af37;font-size:14px;">${pct.toFixed(2)}%</span></div>
-          <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-bottom:3px;"><div style="height:100%;width:${pct}%;background:${data.color};border-radius:3px;"></div></div>
-          <div style="font-size:12px;color:#8a8a9a;">Rp ${formatNumber(data.total)}</div>`;
-        if (data.details.length > 1) {
-          html += `<div style="margin-left:14px;padding-left:12px;border-left:2px solid rgba(212,175,55,0.15);margin-top:6px;">`;
-          data.details.forEach((d) => {
-            html += `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;color:#5a5a6a;"><span>${d.name}</span><span style="color:#8a8a9a;">Rp ${formatNumber(d.amount)}</span></div>`;
-          });
-          html += `</div>`;
+      // Section title
+      pdf.setTextColor(26, 58, 92);
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
+      pdf.text('Asset Allocation Summary', ml, y); y += 6;
+
+      // Allocation table header
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(ml, y, cw, 7, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+      pdf.text('CATEGORY', ml + 3, y + 5);
+      pdf.text('ASSETS', ml + cw * 0.45, y + 5);
+      pdf.text('AMOUNT (IDR)', ml + cw * 0.75, y + 5);
+      pdf.text('ALLOCATION', ml + cw * 0.9, y + 5);
+      y += 7;
+
+      // Allocation table rows
+      const cats = Object.entries(grouped).sort((a, b) => b[1].total - a[1].total);
+      cats.forEach(([cat, data], idx) => {
+        if (y > ph - 38) {
+          pdf.addPage(); y = ml;
+          pdf.setFillColor(26, 58, 92);
+          pdf.rect(ml, y, cw, 7, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+          pdf.text('CATEGORY', ml + 3, y + 5);
+          pdf.text('ASSETS', ml + cw * 0.45, y + 5);
+          pdf.text('AMOUNT (IDR)', ml + cw * 0.75, y + 5);
+          pdf.text('ALLOCATION', ml + cw * 0.9, y + 5);
+          y += 7;
         }
-        html += `</div>`;
-      });
-      html += `</div></div>`;
-      container.innerHTML = html;
-
-      await new Promise((r) => setTimeout(r, 300));
-      const canvas = await html2canvas(container, {
-        backgroundColor: "#0a0a0f",
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-      });
-      document.body.removeChild(container);
-
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      pdf.addImage(
-        canvas.toDataURL("image/jpeg", 0.9),
-        "JPEG",
-        0,
-        0,
-        pdfW,
-        pdfH,
-      );
-
-      // Page 2: Asset History Table
-      if (history.length > 0) {
-        const c2 = document.createElement("div");
-        c2.style.cssText =
-          "position:fixed;top:-9999px;left:-9999px;width:1400px;background:#0a0a0f;color:#f0f0f5;font-family:'Plus Jakarta Sans',sans-serif;padding:40px;";
-        const names = [
-          ...new Set(history.flatMap((e) => Object.keys(e.assets))),
-        ].sort();
-        let th = `<div style="font-size:22px;font-weight:800;color:#d4af37;margin-bottom:24px;">📋 Asset Growth History</div>
-          <table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:rgba(212,175,55,0.08);">
-          <th style="padding:12px 10px;text-align:left;color:#d4af37;font-size:11px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);">Month</th>`;
-        names.forEach((n) => {
-          th += `<th style="padding:12px 10px;text-align:right;color:#d4af37;font-size:11px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);">${n}</th>`;
-        });
-        th += `<th style="padding:12px 10px;text-align:right;color:#d4af37;font-size:11px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);">Total</th>
-          <th style="padding:12px 10px;text-align:right;color:#d4af37;font-size:11px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);">Change</th></tr></thead><tbody>`;
-        let pt = null;
-        history.forEach((entry, idx) => {
-          const [y, m] = entry.date.split("-");
-          const bg = idx % 2 === 0 ? "rgba(14,14,20,0.5)" : "transparent";
-          th += `<tr style="background:${bg};"><td style="padding:10px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.04);">${mnths[parseInt(m) - 1]} ${y}</td>`;
-          names.forEach((n) => {
-            th += `<td style="padding:10px;text-align:right;color:#c0c0cc;border-bottom:1px solid rgba(255,255,255,0.04);">${formatNumber(entry.assets[n] || 0)}</td>`;
+        if (idx % 2 === 0) {
+          pdf.setFillColor(248, 249, 252);
+          pdf.rect(ml, y, cw, 7, 'F');
+        }
+        pdf.setTextColor(40, 45, 60);
+        pdf.setFontSize(8); pdf.setFont('helvetica', 'bold');
+        pdf.text(cat, ml + 3, y + 5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(100, 105, 120);
+        pdf.text(data.details.map(d => d.name).join(', '), ml + cw * 0.45, y + 5);
+        pdf.setTextColor(40, 45, 60);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(fmtRp(data.total), ml + cw * 0.75, y + 5);
+        const pct = total > 0 ? (data.total / total) * 100 : 0;
+        pdf.setTextColor(26, 58, 92);
+        pdf.text(pct.toFixed(2) + '%', ml + cw * 0.9, y + 5);
+        y += 7;
+        // Sub-assets if more than one
+        if (data.details.length > 1) {
+          data.details.forEach(d => {
+            pdf.setTextColor(120, 125, 140);
+            pdf.setFontSize(6.5); pdf.setFont('helvetica', 'normal');
+            pdf.text('  ' + d.name, ml + 6, y + 4);
+            pdf.text(fmtRp(d.amount), ml + cw * 0.75, y + 4);
+            y += 5;
           });
-          th += `<td style="padding:10px;text-align:right;font-weight:700;color:#d4af37;border-bottom:1px solid rgba(255,255,255,0.04);">Rp ${formatNumber(entry.total)}</td>`;
-          if (pt !== null && pt > 0) {
-            const ch = ((entry.total - pt) / pt) * 100;
-            const cl = ch >= 0 ? "#34d399" : "#f87171";
-            th += `<td style="padding:10px;text-align:right;font-weight:700;color:${cl};border-bottom:1px solid rgba(255,255,255,0.04);">${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%</td>`;
-          } else {
-            th += `<td style="padding:10px;text-align:right;color:#5a5a6a;border-bottom:1px solid rgba(255,255,255,0.04);">-</td>`;
-          }
-          th += `</tr>`;
-          pt = entry.total;
-        });
-        th += `</tbody></table>`;
-        c2.innerHTML = th;
-        document.body.appendChild(c2);
-        await new Promise((r) => setTimeout(r, 300));
-        const cv2 = await html2canvas(c2, {
-          backgroundColor: "#0a0a0f",
-          scale: 1.5,
-          useCORS: true,
-          logging: false,
-        });
-        document.body.removeChild(c2);
-        pdf.addPage("a4", "landscape");
-        const w2 = pdf.internal.pageSize.getWidth();
-        pdf.addImage(
-          cv2.toDataURL("image/jpeg", 0.9),
-          "JPEG",
-          0,
-          0,
-          w2,
-          Math.min(
-            (cv2.height * w2) / cv2.width,
-            pdf.internal.pageSize.getHeight(),
-          ),
-        );
-      }
+        }
+      });
 
-      return pdf.output("arraybuffer");
+      // Total row
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(ml, y, cw, 8, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'bold');
+      pdf.text('TOTAL PORTFOLIO VALUE', ml + 3, y + 5.5);
+      pdf.text(fmtRp(total), ml + cw * 0.75, y + 5.5);
+      pdf.text('100.00%', ml + cw * 0.9, y + 5.5);
+      y += 14;
+
+      // Footer
+      pdf.setTextColor(155, 160, 175);
+      pdf.setFontSize(6); pdf.setFont('helvetica', 'italic');
+      pdf.text('This statement is confidential and intended solely for personal financial planning purposes.', ml, ph - 10);
+      pdf.text('Page 1', pw - mr, ph - 10, { align: 'right' });
+
+      // === PAGE 2: PERFORMANCE & HISTORY (LANDSCAPE FOR MORE COLUMNS) ===
+      pdf.addPage('a4', 'landscape');
+      const lpw = pdf.internal.pageSize.getWidth();
+      const lph = pdf.internal.pageSize.getHeight();
+      const lml = 14, lmr = 14, lcw = lpw - lml - lmr;
+      let ly = lml;
+
+      // Navy header bar (landscape)
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(0, 0, lpw, 22, 'F');
+      pdf.setFillColor(212, 175, 55);
+      pdf.rect(0, 22, lpw, 1, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(16); pdf.setFont('helvetica', 'bold');
+      pdf.text('WEALTH PORTFOLIO', lml, 11);
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(170, 190, 210);
+      pdf.text('Historical Performance - All Asset Classes', lml, 17);
+      pdf.text(ds, lpw - lmr, 11, { align: 'right' });
+      ly = 30;
+
+      const mnths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const assetNames = [...new Set(history.flatMap(e => Object.keys(e.assets)))].sort();
+      const totalColWidth = 30;
+      const changeColWidth = 22;
+      const periodColWidth = 22;
+      const availableWidth = lcw - periodColWidth - totalColWidth - changeColWidth;
+      const colW = Math.max(18, Math.min(28, availableWidth / assetNames.length));
+
+      // Table header
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(lml, ly, lcw, 7, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+      pdf.text('PERIOD', lml + 2, ly + 5);
+      assetNames.forEach((n, i) => { pdf.text(n, lml + periodColWidth + i * colW, ly + 5); });
+      pdf.text('TOTAL', lml + periodColWidth + assetNames.length * colW, ly + 5);
+      pdf.text('CHANGE', lml + periodColWidth + (assetNames.length + 1) * colW, ly + 5);
+      ly += 7;
+
+      let prevTotal = null;
+      let bestMonth = null, worstMonth = null;
+      let cumulativeGrowth = 0;
+      history.forEach((entry, idx) => {
+        if (ly > lph - 18) {
+          pdf.addPage('a4', 'landscape');
+          const newLpw = pdf.internal.pageSize.getWidth();
+          const newLph = pdf.internal.pageSize.getHeight();
+          ly = lml;
+          pdf.setFillColor(26, 58, 92);
+          pdf.rect(0, 0, newLpw, 22, 'F');
+          pdf.setFillColor(212, 175, 55);
+          pdf.rect(0, 22, newLpw, 1, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(16); pdf.setFont('helvetica', 'bold');
+          pdf.text('WEALTH PORTFOLIO', lml, 11);
+          pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(170, 190, 210);
+          pdf.text('Historical Performance (continued)', lml, 17);
+          ly = 30;
+          pdf.setFillColor(26, 58, 92);
+          pdf.rect(lml, ly, lcw, 7, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+          pdf.text('PERIOD', lml + 2, ly + 5);
+          assetNames.forEach((n, i) => { pdf.text(n, lml + periodColWidth + i * colW, ly + 5); });
+          pdf.text('TOTAL', lml + periodColWidth + assetNames.length * colW, ly + 5);
+          pdf.text('CHANGE', lml + periodColWidth + (assetNames.length + 1) * colW, ly + 5);
+          ly += 7;
+        }
+        if (idx % 2 === 0) {
+          pdf.setFillColor(248, 249, 252);
+          pdf.rect(lml, ly, lcw, 6, 'F');
+        }
+        const [yr, mo] = entry.date.split('-');
+        pdf.setTextColor(40, 45, 60);
+        pdf.setFontSize(6); pdf.setFont('helvetica', 'bold');
+        pdf.text(`${mnths[parseInt(mo) - 1]} ${yr}`, lml + 2, ly + 4);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(100, 105, 120);
+        assetNames.forEach((n, i) => {
+          pdf.text(fmtNum(entry.assets[n] || 0), lml + periodColWidth + i * colW, ly + 4);
+        });
+        pdf.setTextColor(40, 45, 60); pdf.setFont('helvetica', 'bold');
+        pdf.text(fmtRp(entry.total), lml + periodColWidth + assetNames.length * colW, ly + 4);
+        if (prevTotal !== null && prevTotal > 0) {
+          const ch = ((entry.total - prevTotal) / prevTotal) * 100;
+          if (bestMonth === null || ch > bestMonth.change) bestMonth = { date: `${mnths[parseInt(mo) - 1]} ${yr}`, change: ch };
+          if (worstMonth === null || ch < worstMonth.change) worstMonth = { date: `${mnths[parseInt(mo) - 1]} ${yr}`, change: ch };
+          cumulativeGrowth += ch;
+          pdf.setTextColor(ch >= 0 ? 34 : 220, ch >= 0 ? 140 : 60, ch >= 0 ? 80 : 60);
+          pdf.text(`${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%`, lml + periodColWidth + (assetNames.length + 1) * colW, ly + 4);
+        } else {
+          pdf.setTextColor(155, 160, 175); pdf.text('--', lml + periodColWidth + (assetNames.length + 1) * colW, ly + 4);
+        }
+        ly += 6;
+        prevTotal = entry.total;
+      });
+
+      // Footer
+      pdf.setTextColor(155, 160, 175);
+      pdf.setFontSize(6); pdf.setFont('helvetica', 'italic');
+      pdf.text('This statement is confidential and intended solely for personal financial planning purposes.', lml, lph - 8);
+      pdf.text('Page 2', lpw - lmr, lph - 8, { align: 'right' });
+
+      // === PAGE 3: PORTFOLIO SUMMARY & ANALYSIS (PORTRAIT) ===
+      pdf.addPage('a4', 'portrait');
+      let y3 = ml;
+      // Navy header bar
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(0, 0, pw, 26, 'F');
+      pdf.setFillColor(212, 175, 55);
+      pdf.rect(0, 26, pw, 1.2, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18); pdf.setFont('helvetica', 'bold');
+      pdf.text('WEALTH PORTFOLIO', ml, 13);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(170, 190, 210);
+      pdf.text('Portfolio Summary & Analysis', ml, 20);
+      pdf.text(ds, pw - mr, 13, { align: 'right' });
+      y3 = 36;
+
+      // Section title
+      pdf.setTextColor(26, 58, 92);
+      pdf.setFontSize(12); pdf.setFont('helvetica', 'bold');
+      pdf.text('Portfolio Overview', ml, y3); y3 += 8;
+
+      // Key metrics in 2x2 grid
+      const boxW = (cw - 6) / 2;
+      const boxH = 24;
+      const metricsData = [
+        { label: 'Total Portfolio Value', value: fmtRp(total), color: [26, 58, 92] },
+        { label: 'Number of Asset Classes', value: String(catLabels.length), color: [45, 106, 79] },
+        { label: 'Total Dividends Earned', value: fmtRp(dashboard.total_dividends), color: [139, 92, 246] },
+        { label: 'Individual Assets', value: String(dashboard.allocations.length), color: [212, 175, 55] },
+      ];
+      metricsData.forEach((m, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const bx = ml + col * (boxW + 6);
+        const by = y3 + row * (boxH + 4);
+        pdf.setFillColor(245, 247, 250);
+        pdf.rect(bx, by, boxW, boxH, 'F');
+        pdf.setDrawColor(225, 230, 238);
+        pdf.rect(bx, by, boxW, boxH);
+        pdf.setFillColor(m.color[0], m.color[1], m.color[2]);
+        pdf.rect(bx, by, boxW, 0.8, 'F');
+        pdf.setTextColor(110, 120, 140);
+        pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+        pdf.text(m.label.toUpperCase(), bx + 5, by + 7);
+        pdf.setTextColor(m.color[0], m.color[1], m.color[2]);
+        pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
+        pdf.text(m.value, bx + 5, by + 17);
+      });
+      y3 += 2 * (boxH + 4) + 6;
+
+      // Performance Summary
+      pdf.setDrawColor(212, 175, 55);
+      pdf.setLineWidth(0.3);
+      pdf.line(ml, y3, pw - mr, y3); y3 += 6;
+      pdf.setTextColor(26, 58, 92);
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
+      pdf.text('Performance Summary', ml, y3); y3 += 7;
+
+      // Performance stats
+      const perfStats = [
+        { label: 'Best Month', value: bestMonth ? `${bestMonth.date} (+${bestMonth.change.toFixed(2)}%)` : 'N/A' },
+        { label: 'Worst Month', value: worstMonth ? `${worstMonth.date} (${worstMonth.change.toFixed(2)}%)` : 'N/A' },
+        { label: 'Average Monthly Change', value: history.length > 1 ? `${(cumulativeGrowth / (history.length - 1)).toFixed(2)}%` : 'N/A' },
+        { label: 'Tracking Period', value: history.length > 0 ? `${history.length} months` : 'N/A' },
+      ];
+      perfStats.forEach((stat, i) => {
+        if (i % 2 === 0) {
+          pdf.setFillColor(248, 249, 252);
+          pdf.rect(ml, y3 - 4, cw, 7, 'F');
+        }
+        pdf.setTextColor(100, 105, 120);
+        pdf.setFontSize(7.5); pdf.setFont('helvetica', 'normal');
+        pdf.text(stat.label + ':', ml + 3, y3);
+        pdf.setTextColor(40, 45, 60);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(stat.value, ml + cw * 0.45, y3);
+        y3 += 7;
+      });
+      y3 += 6;
+
+      // Category Allocation Breakdown
+      pdf.setDrawColor(212, 175, 55);
+      pdf.line(ml, y3, pw - mr, y3); y3 += 6;
+      pdf.setTextColor(26, 58, 92);
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
+      pdf.text('Category Allocation Breakdown', ml, y3); y3 += 7;
+
+      // Table header
+      pdf.setFillColor(26, 58, 92);
+      pdf.rect(ml, y3, cw, 7, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+      pdf.text('CATEGORY', ml + 3, y3 + 5);
+      pdf.text('VALUE', ml + cw * 0.4, y3 + 5);
+      pdf.text('% OF PORTFOLIO', ml + cw * 0.6, y3 + 5);
+      pdf.text('VISUAL', ml + cw * 0.78, y3 + 5);
+      y3 += 7;
+
+      cats.forEach(([cat, data], idx) => {
+        if (y3 > ph - 25) {
+          pdf.addPage('a4', 'portrait'); y3 = ml;
+          pdf.setFillColor(26, 58, 92);
+          pdf.rect(ml, y3, cw, 7, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+          pdf.text('CATEGORY', ml + 3, y3 + 5);
+          pdf.text('VALUE', ml + cw * 0.4, y3 + 5);
+          pdf.text('% OF PORTFOLIO', ml + cw * 0.6, y3 + 5);
+          pdf.text('VISUAL', ml + cw * 0.78, y3 + 5);
+          y3 += 7;
+        }
+        if (idx % 2 === 0) {
+          pdf.setFillColor(248, 249, 252);
+          pdf.rect(ml, y3, cw, 7, 'F');
+        }
+        const pct = total > 0 ? (data.total / total) * 100 : 0;
+        pdf.setTextColor(40, 45, 60);
+        pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold');
+        pdf.text(cat, ml + 3, y3 + 5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(fmtRp(data.total), ml + cw * 0.4, y3 + 5);
+        pdf.text(pct.toFixed(2) + '%', ml + cw * 0.6, y3 + 5);
+        // Visual bar
+        const barWidth = (pct / 100) * (cw * 0.2);
+        pdf.setFillColor(26, 58, 92);
+        pdf.rect(ml + cw * 0.78, y3 + 1.5, barWidth, 4, 'F');
+        y3 += 7;
+      });
+
+      // Footer
+      pdf.setTextColor(155, 160, 175);
+      pdf.setFontSize(6); pdf.setFont('helvetica', 'italic');
+      pdf.text('This statement is confidential and intended solely for personal financial planning purposes.', ml, ph - 10);
+      pdf.text('Page 3', pw - mr, ph - 10, { align: 'right' });
+
+      return pdf.output('arraybuffer');
     };
 
     const sendReportWithPdf = async () => {
