@@ -1,17 +1,15 @@
 # 💎 Wealth Portfolio Tracker
 
-A comprehensive personal financial asset tracking application with a premium dark luxury UI. Monitor and grow your financial assets with precision through intuitive visualizations and detailed analytics.
-
-![Wealth Portfolio Tracker](./screenshots/Dashboard.png)
+A comprehensive personal financial asset tracking application with a professional finance dashboard. Monitor and grow your financial assets with precision through intuitive visualizations, detailed analytics, and automated PDF reports.
 
 ## ✨ Features
 
 ### 📊 Dashboard
 
-- Real-time asset overview with total assets and dividends
-- Interactive doughnut chart with center total display for asset allocation by category
-- Line chart showing asset growth over time with monthly percentage changes
-- Detailed allocation breakdown with progress bars and sub-item details
+- **6 KPI Cards**: Net Worth (with sparkline), Total Dividends, Best Performer, Asset Classes count, Largest Position, and Tracking Months
+- **Portfolio Growth Chart**: Line chart with gradient fill showing asset growth over time
+- **Asset Allocation Chart**: Interactive doughnut chart with center total display
+- **Expandable Allocation Breakdown**: Click categories to reveal individual asset details with percentage bars
 - Dynamic category grouping based on asset class mappings
 
 ### 💰 Asset Management
@@ -49,36 +47,24 @@ A comprehensive personal financial asset tracking application with a premium dar
 
 ### 📱 Telegram Integration
 
-- Automated monthly reports sent to Telegram
-- Per-asset-class comparison with previous month (📈/📉/🆕 indicators)
+- Automated monthly reports sent to Telegram with professional PDF attachment
+- **4-Page PDF Report**:
+  - **Page 1**: Statement of Financial Position with 4 metric boxes and allocation summary
+  - **Page 2**: Historical Performance (landscape) with all asset classes and color-coded monthly changes
+  - **Page 3+**: Portfolio Summary with Top 5 Assets, Month-over-Month Changes by asset class, and Category Allocation Breakdown
+  - **Report Notes**: Methodology explanation and disclaimers
+- Per-asset-class comparison with previous month (📈/📉/🆕 indicators in text summary)
 - Auto-scheduling on the last day of each month at 23:00
 - Simple setup with bot token and chat ID
 
 ## 🎨 UI Design
 
-- Premium dark luxury theme with gold accents (#d4af37)
-- Glassmorphism effects with backdrop blur
-- Plus Jakarta Sans typography
-- Responsive layout (max-width 1600px)
-- Smooth transitions and hover effects
-
-## 🖼️ Screenshots
-
-### Dashboard View
-
-![Dashboard](./screenshots/Dashboard.png)
-
-### Dividend Tracker
-
-![Dividends](./screenshots/Dividens.png)
-
-### Rebalancing
-
-![Rebalancing](./screenshots/Rebalancing.png)
-
-### Assets
-
-![Assets](./screenshots/Assets.png)
+- **Professional sidebar navigation** with collapsible menu and SVG icons
+- **Sticky topbar** with quick stats (Monthly Growth, Dividends YTD)
+- Clean dark theme optimized for financial data
+- Inter typography for professional appearance
+- Responsive layout with smooth transitions
+- Net worth display in sidebar footer
 
 ## 🚀 Quick Start
 
@@ -115,7 +101,7 @@ The application will automatically create database tables, set up default asset 
 
 | Layer          | Technology                                    |
 | -------------- | --------------------------------------------- |
-| Frontend       | Vue.js 3, Vite, Chart.js (vue-chartjs), Axios |
+| Frontend       | Vue.js 3, Vite, Chart.js (vue-chartjs), jsPDF, Axios |
 | Backend        | Rust, Actix-web, SQLx, PostgreSQL             |
 | Infrastructure | Docker, Docker Compose, Nginx                 |
 
@@ -175,7 +161,7 @@ asset-allocation/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Dashboard.vue
-│   │   │   ├── AssetManager.vue
+│   │   │   ├── AssetManagerRealtime.vue
 │   │   │   ├── DividendTracker.vue
 │   │   │   ├── Rebalancing.vue
 │   │   │   ├── TelegramSettings.vue
@@ -190,13 +176,16 @@ asset-allocation/
 │   ├── src/
 │   │   ├── main.rs
 │   │   ├── handlers.rs
-│   │   └── models.rs
+│   │   ├── models.rs
+│   │   └── price_service.rs
 │   ├── migrations/
 │   │   ├── 001_init.sql
 │   │   ├── 002_update_dividends.sql
 │   │   ├── 003_allocation_preferences.sql
 │   │   ├── 004_telegram_settings.sql
-│   │   └── 005_dynamic_categories.sql
+│   │   ├── 005_dynamic_categories.sql
+│   │   ├── 006_realtime_pricing.sql
+│   │   └── 007_usd_realtime.sql
 │   ├── Dockerfile
 │   └── Cargo.toml
 ├── docker-compose.yml

@@ -1,42 +1,118 @@
 <template>
   <div class="dashboard">
-    <div class="stats-grid">
-      <div class="stat-card gradient-dark">
-        <div class="stat-icon">💎</div>
-        <div class="stat-content">
-          <h3>Total Assets</h3>
-          <div class="value">Rp {{ formatNumber(dashboardData.total) }}</div>
-          <div class="growth" :class="growthClass">
-            <span v-if="monthlyGrowth !== null">
-              {{ monthlyGrowth > 0 ? "↑" : "↓" }}
-              {{ Math.abs(monthlyGrowth).toFixed(2) }}%
+    <!-- KPI Cards Row -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Total Net Worth</span>
+          <span class="kpi-badge" :class="monthlyGrowth >= 0 ? 'positive' : 'negative'">
+            {{ monthlyGrowth >= 0 ? '↑' : '↓' }} {{ Math.abs(monthlyGrowth).toFixed(1) }}%
+          </span>
+        </div>
+        <div class="kpi-value">{{ formatCurrency(dashboardData.total) }}</div>
+        <div class="kpi-sparkline">
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none">
+            <polyline :points="sparklinePoints" fill="none" stroke="var(--gold)" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Total Dividends</span>
+          <span class="kpi-icon dividend">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </span>
+        </div>
+        <div class="kpi-value">{{ formatCurrency(dashboardData.total_dividends) }}</div>
+        <div class="kpi-subtext">Lifetime earnings</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Best Performer</span>
+          <span class="kpi-icon best">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+              <polyline points="17 6 23 6 23 12"/>
+            </svg>
+          </span>
+        </div>
+        <div class="kpi-value best-value">{{ bestPerformer.name }}</div>
+        <div class="kpi-subtext positive">{{ bestPerformer.percentage.toFixed(1) }}% of portfolio</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Asset Classes</span>
+          <span class="kpi-icon classes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+          </span>
+        </div>
+        <div class="kpi-value">{{ Object.keys(groupedAllocations).length }}</div>
+        <div class="kpi-subtext">{{ dashboardData.allocations?.length || 0 }} individual assets</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Largest Position</span>
+          <span class="kpi-icon largest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="6"/>
+              <circle cx="12" cy="12" r="2"/>
+            </svg>
+          </span>
+        </div>
+        <div class="kpi-value largest-value">{{ largestAsset.name || 'N/A' }}</div>
+        <div class="kpi-subtext">{{ formatCurrency(largestAsset.amount) }}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Tracking Since</span>
+          <span class="kpi-icon tracking">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+        </div>
+        <div class="kpi-value tracking-value">{{ trackingMonths }} months</div>
+        <div class="kpi-subtext">{{ historyData.length }} snapshots recorded</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-grid">
+      <!-- Growth Chart -->
+      <div class="chart-card wide">
+        <div class="chart-header">
+          <h2>Portfolio Growth</h2>
+          <div class="chart-legend">
+            <span class="legend-item">
+              <span class="legend-dot"></span>
+              Total Value
             </span>
-            <span v-else>-</span>
           </div>
         </div>
-      </div>
-      <div class="stat-card gradient-gold">
-        <div class="stat-icon">💵</div>
-        <div class="stat-content">
-          <h3>Total Dividends</h3>
-          <div class="value">
-            Rp {{ formatNumber(dashboardData.total_dividends) }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="chart-card">
-      <h2>📈 Asset Growth Over Time</h2>
-      <div class="chart-wrapper">
-        <Line :data="growthChartData" :options="growthChartOptions" />
-      </div>
-    </div>
-
-    <div class="charts-row">
-      <div class="chart-card half">
-        <h2>🎯 Current Asset Allocation</h2>
         <div class="chart-wrapper">
+          <Line :data="growthChartData" :options="growthChartOptions" />
+        </div>
+      </div>
+
+      <!-- Allocation Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h2>Asset Allocation</h2>
+        </div>
+        <div class="chart-wrapper donut-wrapper">
           <Doughnut
             :data="pieChartData"
             :options="pieChartOptions"
@@ -44,48 +120,79 @@
           />
         </div>
       </div>
+    </div>
 
-      <div class="chart-card half">
-        <h2>📋 Allocation Details</h2>
-        <div class="allocation-list">
+    <!-- Allocation Details -->
+    <div class="allocation-card">
+      <div class="chart-header">
+        <h2>Allocation Breakdown</h2>
+        <span class="allocation-total">Total: {{ formatCurrency(dashboardData.total) }}</span>
+      </div>
+      <div class="allocation-table">
+        <div class="allocation-header-row">
+          <span>Category</span>
+          <span>Value</span>
+          <span>Allocation</span>
+          <span></span>
+        </div>
+        <div
+          v-for="(group, category) in groupedAllocations"
+          :key="category"
+          class="allocation-group-item"
+        >
           <div
-            v-for="(group, category) in groupedAllocations"
-            :key="category"
-            class="allocation-group"
+            class="allocation-row"
+            :class="{ expanded: expandedCategories[category] }"
+            @click="toggleCategory(category)"
           >
-            <div class="allocation-item main">
-              <div class="allocation-header">
-                <span class="allocation-name">{{ category }}</span>
-                <span class="allocation-percentage"
-                  >{{ group.percentage.toFixed(2) }}%</span
-                >
-              </div>
-              <div class="allocation-bar">
-                <div
-                  class="allocation-fill"
-                  :style="{
-                    width: group.percentage + '%',
-                    background: group.color,
-                  }"
-                ></div>
-              </div>
-              <div class="allocation-amount">
-                Rp {{ formatNumber(group.total) }}
-              </div>
+            <div class="alloc-name">
+              <svg
+                class="expand-icon"
+                :class="{ rotated: expandedCategories[category] }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              <span class="alloc-dot" :style="{ background: group.color }"></span>
+              {{ category }}
+              <span class="alloc-count">{{ group.details.length }} assets</span>
             </div>
-            <div v-if="group.details.length > 1" class="allocation-breakdown">
+            <div class="alloc-value">{{ formatCurrency(group.total) }}</div>
+            <div class="alloc-pct">{{ group.percentage.toFixed(2) }}%</div>
+            <div class="alloc-bar">
+              <div
+                class="alloc-fill"
+                :style="{ width: group.percentage + '%', background: group.color }"
+              ></div>
+            </div>
+          </div>
+          <transition name="expand">
+            <div v-if="expandedCategories[category]" class="allocation-details">
               <div
                 v-for="detail in group.details"
                 :key="detail.name"
-                class="allocation-sub-item"
+                class="detail-row"
               >
-                <span class="sub-name">{{ detail.name }}</span>
-                <span class="sub-amount"
-                  >Rp {{ formatNumber(detail.amount) }}</span
-                >
+                <span class="detail-name">{{ detail.name }}</span>
+                <span class="detail-value">{{ formatCurrency(detail.amount) }}</span>
+                <span class="detail-pct">
+                  {{ group.total > 0 ? ((detail.amount / group.total) * 100).toFixed(1) : 0 }}%
+                </span>
+                <div class="detail-bar">
+                  <div
+                    class="detail-fill"
+                    :style="{
+                      width: (group.total > 0 ? (detail.amount / group.total) * 100 : 0) + '%',
+                      background: group.color
+                    }"
+                  ></div>
+                </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
       </div>
     </div>
@@ -133,67 +240,89 @@ export default {
       total_dividends: 0,
     });
 
+    const historyData = ref([]);
+    const categoryMappingData = ref({});
+    const expandedCategories = ref({});
+
+    const toggleCategory = (category) => {
+      expandedCategories.value[category] = !expandedCategories.value[category];
+    };
+
     const centerTextPlugin = {
       id: "centerText",
       beforeDraw(chart) {
-        if (!chart.data.datasets.length || !chart.data.datasets[0].data.length)
-          return;
+        if (!chart.data.datasets.length || !chart.data.datasets[0].data.length) return;
         const { height, ctx } = chart;
         ctx.restore();
         const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
         const formatted = "Rp " + new Intl.NumberFormat("id-ID").format(total);
-        ctx.font = `700 ${Math.round(height / 14)}px Plus Jakarta Sans`;
+        ctx.font = `600 ${Math.round(height / 16)}px Inter`;
         ctx.fillStyle = "#f0f0f5";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
         const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-        ctx.fillText(formatted, centerX, centerY - 10);
-        ctx.font = `500 ${Math.round(height / 22)}px Plus Jakarta Sans`;
+        ctx.fillText(formatted, centerX, centerY - 8);
+        ctx.font = `400 ${Math.round(height / 24)}px Inter`;
         ctx.fillStyle = "#8a8a9a";
-        ctx.fillText("Total Assets", centerX, centerY + 16);
+        ctx.fillText("Total", centerX, centerY + 12);
         ctx.save();
       },
     };
+
     const pieChartData = ref({ labels: [], datasets: [] });
     const growthChartData = ref({ labels: [], datasets: [] });
-    const historyData = ref([]);
 
     const monthlyGrowth = computed(() => {
-      if (historyData.value.length < 2) return null;
+      if (historyData.value.length < 2) return 0;
       const latest = historyData.value[historyData.value.length - 1].total;
       const previous = historyData.value[historyData.value.length - 2].total;
       return ((latest - previous) / previous) * 100;
     });
 
-    const growthClass = computed(() => {
-      if (monthlyGrowth.value === null) return "";
-      return monthlyGrowth.value > 0 ? "positive" : "negative";
+    const trackingMonths = computed(() => historyData.value.length);
+
+    const sparklinePoints = computed(() => {
+      if (historyData.value.length < 2) return "0,15 100,15";
+      const values = historyData.value.map(h => h.total);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min || 1;
+      return values.map((v, i) => {
+        const x = (i / (values.length - 1)) * 100;
+        const y = 28 - ((v - min) / range) * 26;
+        return `${x},${y}`;
+      }).join(" ");
     });
 
-    const categoryMappingData = ref({});
+    const bestPerformer = computed(() => {
+      if (!dashboardData.value.allocations?.length) return { name: 'N/A', percentage: 0 };
+      const grouped = groupedAllocations.value;
+      let best = { name: '', percentage: 0 };
+      for (const [name, data] of Object.entries(grouped)) {
+        if (data.percentage > best.percentage) {
+          best = { name, percentage: data.percentage };
+        }
+      }
+      return best;
+    });
+
+    const largestAsset = computed(() => {
+      if (!dashboardData.value.allocations?.length) return { name: 'N/A', amount: 0 };
+      const sorted = [...dashboardData.value.allocations].sort((a, b) => b.amount - a.amount);
+      return sorted[0] || { name: 'N/A', amount: 0 };
+    });
 
     const groupedAllocations = computed(() => {
       const grouped = {};
-      const total = dashboardData.value.allocations.reduce(
-        (sum, item) => sum + item.amount,
-        0,
-      );
+      const total = dashboardData.value.allocations?.reduce((sum, item) => sum + item.amount, 0) || 0;
 
       const defaultColors = [
-        "#3b82f6",
-        "#8b5cf6",
-        "#f59e0b",
-        "#f97316",
-        "#10b981",
-        "#ef4444",
-        "#6366f1",
-        "#ec4899",
-        "#14b8a6",
-        "#84cc16",
+        "#d4af37", "#60a5fa", "#a78bfa", "#34d399", "#f97316",
+        "#f87171", "#38bdf8", "#e879f9", "#2dd4bf", "#a3e635",
       ];
 
-      dashboardData.value.allocations.forEach((item) => {
+      dashboardData.value.allocations?.forEach((item) => {
         const category = categoryMappingData.value[item.name] || item.name;
 
         if (!grouped[category]) {
@@ -214,8 +343,7 @@ export default {
       });
 
       Object.keys(grouped).forEach((category) => {
-        grouped[category].percentage =
-          total > 0 ? (grouped[category].total / total) * 100 : 0;
+        grouped[category].percentage = total > 0 ? (grouped[category].total / total) * 100 : 0;
       });
 
       return grouped;
@@ -224,16 +352,16 @@ export default {
     const pieChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: "72%",
+      cutout: "75%",
       plugins: {
         legend: {
           position: "bottom",
           labels: {
             padding: 16,
-            boxWidth: 12,
-            boxHeight: 12,
-            font: { size: 12, family: "Plus Jakarta Sans", weight: "500" },
-            color: "#c0c0cc",
+            boxWidth: 10,
+            boxHeight: 10,
+            font: { size: 12, family: "Inter", weight: "500" },
+            color: "#8a8a9a",
             usePointStyle: true,
             pointStyle: "circle",
             generateLabels: function (chart) {
@@ -246,7 +374,7 @@ export default {
                   return {
                     text: `${label} ${percentage}%`,
                     fillStyle: data.datasets[0].backgroundColor[i],
-                    fontColor: "#c0c0cc",
+                    fontColor: "#8a8a9a",
                     hidden: false,
                     index: i,
                   };
@@ -257,19 +385,17 @@ export default {
           },
         },
         tooltip: {
-          backgroundColor: "rgba(10, 10, 15, 0.95)",
-          padding: 16,
-          titleFont: { size: 14, weight: "bold", family: "Plus Jakarta Sans" },
+          backgroundColor: "rgba(22, 22, 29, 0.95)",
+          padding: 14,
+          titleFont: { size: 13, weight: "600", family: "Inter" },
           titleColor: "#f0f0f5",
-          bodyFont: { size: 13, family: "Plus Jakarta Sans" },
-          bodyColor: "#c0c0cc",
-          borderColor: "rgba(212, 175, 55, 0.3)",
+          bodyFont: { size: 12, family: "Inter" },
+          bodyColor: "#8a8a9a",
+          borderColor: "rgba(212, 175, 55, 0.2)",
           borderWidth: 1,
           displayColors: true,
+          cornerRadius: 8,
           callbacks: {
-            title: function (context) {
-              return context[0].label;
-            },
             label: function (context) {
               const value = context.parsed;
               const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -284,38 +410,28 @@ export default {
     const growthChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false,
-      },
+      interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: {
-          display: false,
-        },
+        legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(10, 10, 15, 0.95)",
-          padding: 12,
-          titleFont: { size: 14, weight: "bold", family: "Plus Jakarta Sans" },
+          backgroundColor: "rgba(22, 22, 29, 0.95)",
+          padding: 14,
+          titleFont: { size: 13, weight: "600", family: "Inter" },
           titleColor: "#f0f0f5",
-          bodyFont: { size: 13, family: "Plus Jakarta Sans" },
-          bodyColor: "#c0c0cc",
-          borderColor: "rgba(212, 175, 55, 0.3)",
+          bodyFont: { size: 12, family: "Inter" },
+          bodyColor: "#8a8a9a",
+          borderColor: "rgba(212, 175, 55, 0.2)",
           borderWidth: 1,
+          cornerRadius: 8,
           callbacks: {
             label: function (context) {
               const value = context.parsed.y;
               let label = `Total: Rp ${new Intl.NumberFormat("id-ID").format(value)}`;
-
               if (context.dataIndex > 0) {
                 const prevValue = context.dataset.data[context.dataIndex - 1];
                 const change = ((value - prevValue) / prevValue) * 100;
-                const changeText =
-                  change > 0
-                    ? `+${change.toFixed(2)}%`
-                    : `${change.toFixed(2)}%`;
-                label += ` (${changeText})`;
+                label += ` (${change >= 0 ? '+' : ''}${change.toFixed(2)}%)`;
               }
-
               return label;
             },
           },
@@ -324,57 +440,47 @@ export default {
       scales: {
         y: {
           beginAtZero: true,
-          border: { color: "rgba(255, 255, 255, 0.06)" },
-          grid: {
-            color: "rgba(255, 255, 255, 0.04)",
-          },
+          border: { display: false },
+          grid: { color: "rgba(255, 255, 255, 0.04)" },
           ticks: {
             callback: function (value) {
-              return "Rp " + (value / 1000000).toFixed(0) + "M";
+              if (value >= 1000000000) return (value / 1000000000).toFixed(1) + 'B';
+              if (value >= 1000000) return (value / 1000000).toFixed(0) + 'M';
+              return (value / 1000).toFixed(0) + 'K';
             },
-            font: { size: 11, family: "Plus Jakarta Sans" },
-            color: "#8a8a9a",
+            font: { size: 11, family: "Inter" },
+            color: "#5a5a6a",
           },
         },
         x: {
-          border: { color: "rgba(255, 255, 255, 0.06)" },
-          grid: {
-            display: false,
-          },
+          border: { display: false },
+          grid: { display: false },
           ticks: {
-            font: { size: 11, family: "Plus Jakarta Sans" },
-            color: "#8a8a9a",
+            font: { size: 11, family: "Inter" },
+            color: "#5a5a6a",
           },
         },
       },
     };
 
-    const formatNumber = (num) => {
-      return new Intl.NumberFormat("id-ID").format(num);
+    const formatCurrency = (value) => {
+      if (value >= 1000000000) {
+        return 'Rp ' + (value / 1000000000).toFixed(2) + 'B';
+      }
+      if (value >= 1000000) {
+        return 'Rp ' + (value / 1000000).toFixed(1) + 'M';
+      }
+      return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(value));
     };
 
     const formatDate = (dateStr) => {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const [year, month] = dateStr.split("-");
       return `${months[parseInt(month) - 1]} ${year}`;
     };
 
     const loadDashboard = async () => {
       try {
-        // Load category mappings first
         const mappingsResponse = await axios.get("/api/asset-class-categories");
         const mappings = {};
         mappingsResponse.data.forEach((m) => {
@@ -385,40 +491,20 @@ export default {
         const response = await axios.get("/api/dashboard");
         dashboardData.value = response.data;
 
-        // Group assets into categories dynamically
         const groupedData = {};
         const defaultColors = [
-          "#d4af37",
-          "#60a5fa",
-          "#a78bfa",
-          "#34d399",
-          "#f97316",
-          "#f87171",
-          "#38bdf8",
-          "#e879f9",
-          "#2dd4bf",
-          "#a3e635",
+          "#d4af37", "#60a5fa", "#a78bfa", "#34d399", "#f97316",
+          "#f87171", "#38bdf8", "#e879f9", "#2dd4bf", "#a3e635",
         ];
 
-        response.data.allocations.forEach((item) => {
+        response.data.allocations?.forEach((item) => {
           const category = mappings[item.name] || item.name;
-
           if (!groupedData[category]) {
-            const colorIndex =
-              Object.keys(groupedData).length % defaultColors.length;
-            groupedData[category] = {
-              amount: 0,
-              color: defaultColors[colorIndex],
-              details: [],
-            };
+            const colorIndex = Object.keys(groupedData).length % defaultColors.length;
+            groupedData[category] = { amount: 0, color: defaultColors[colorIndex], details: [] };
           }
-
           groupedData[category].amount += item.amount;
-          groupedData[category].details.push({
-            name: item.name,
-            amount: item.amount,
-            percentage: item.percentage,
-          });
+          groupedData[category].details.push({ name: item.name, amount: item.amount, percentage: item.percentage });
         });
 
         const labels = Object.keys(groupedData);
@@ -427,19 +513,14 @@ export default {
 
         pieChartData.value = {
           labels: labels,
-          datasets: [
-            {
-              data: data,
-              backgroundColor: colors,
-              borderWidth: 3,
-              borderColor: "#0a0a0f",
-              hoverOffset: 8,
-              hoverBorderWidth: 2,
-              hoverBorderColor: "rgba(212, 175, 55, 0.5)",
-              borderRadius: 4,
-              spacing: 3,
-            },
-          ],
+          datasets: [{
+            data: data,
+            backgroundColor: colors,
+            borderWidth: 0,
+            hoverOffset: 6,
+            borderRadius: 4,
+            spacing: 2,
+          }],
         };
       } catch (error) {
         console.error("Error loading dashboard:", error);
@@ -453,23 +534,26 @@ export default {
 
         growthChartData.value = {
           labels: response.data.map((h) => formatDate(h.date)),
-          datasets: [
-            {
-              label: "Total Assets",
-              data: response.data.map((h) => h.total),
-              borderColor: "#d4af37",
-              backgroundColor: "rgba(212, 175, 55, 0.08)",
-              tension: 0.4,
-              fill: true,
-              borderWidth: 2.5,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointBackgroundColor: "#d4af37",
-              pointBorderColor: "#0a0a0f",
-              pointBorderWidth: 2,
-              pointHoverBorderWidth: 3,
+          datasets: [{
+            label: "Total Assets",
+            data: response.data.map((h) => h.total),
+            borderColor: "#d4af37",
+            backgroundColor: (context) => {
+              const ctx = context.chart.ctx;
+              const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+              gradient.addColorStop(0, 'rgba(212, 175, 55, 0.2)');
+              gradient.addColorStop(1, 'rgba(212, 175, 55, 0)');
+              return gradient;
             },
-          ],
+            tension: 0.4,
+            fill: true,
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: "#d4af37",
+            pointHoverBorderColor: "#fff",
+            pointHoverBorderWidth: 2,
+          }],
         };
       } catch (error) {
         console.error("Error loading growth data:", error);
@@ -483,214 +567,444 @@ export default {
 
     return {
       dashboardData,
+      historyData,
       pieChartData,
       growthChartData,
       pieChartOptions,
       growthChartOptions,
       centerTextPlugin,
       monthlyGrowth,
-      growthClass,
+      trackingMonths,
+      sparklinePoints,
+      bestPerformer,
+      largestAsset,
       groupedAllocations,
-      formatNumber,
+      expandedCategories,
+      toggleCategory,
+      formatCurrency,
     };
   },
 };
 </script>
 
 <style scoped>
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
-.stat-card {
+
+/* KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+.kpi-card {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
-  padding: 28px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: all 0.2s ease;
 }
-.stat-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.stat-card:hover {
+
+.kpi-card:hover {
   border-color: var(--border-color);
 }
-.stat-card:hover::before {
-  opacity: 0.5;
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
-.stat-card.gradient-dark {
-  background: linear-gradient(
-    135deg,
-    rgba(212, 175, 55, 0.08),
-    rgba(18, 18, 26, 0.95)
-  );
-}
-.stat-card.gradient-gold {
-  background: linear-gradient(
-    135deg,
-    rgba(212, 175, 55, 0.15),
-    rgba(18, 18, 26, 0.95)
-  );
-}
-.stat-icon {
-  font-size: 44px;
-}
-.stat-content {
-  flex: 1;
-}
-.stat-content h3 {
-  margin: 0 0 8px 0;
-  font-size: 11px;
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
-  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.5px;
 }
-.stat-content .value {
-  font-size: 24px;
-  font-weight: 800;
-  margin-bottom: 6px;
-  background: linear-gradient(135deg, var(--gold-light), var(--gold));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+
+.kpi-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
 }
-.growth {
-  font-size: 14px;
-  font-weight: 700;
-}
-.growth.positive {
+
+.kpi-badge.positive {
+  background: rgba(52, 211, 153, 0.15);
   color: var(--accent-green);
 }
-.growth.negative {
+
+.kpi-badge.negative {
+  background: rgba(248, 113, 113, 0.15);
   color: var(--accent-red);
 }
-.chart-card {
-  background: var(--bg-card);
-  padding: 28px;
-  border-radius: 20px;
-  margin-bottom: 20px;
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-}
-.chart-card h2 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: var(--text-primary);
-  font-weight: 700;
-}
-.chart-wrapper {
-  position: relative;
-  height: 380px;
-}
-.charts-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 20px;
-  align-items: start;
-}
-.charts-row .chart-card.half {
-  display: flex;
-  flex-direction: column;
-}
-.charts-row .chart-card.half .chart-wrapper {
-  flex: 1;
-}
-.charts-row .chart-card.half .allocation-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.chart-card.half .chart-wrapper {
-  height: 380px;
+
+.kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.chart-card.half .chart-wrapper canvas {
-  max-height: 100%;
-  max-width: 100%;
+
+.kpi-icon svg {
+  width: 18px;
+  height: 18px;
 }
-.allocation-list {
-  padding: 8px 0;
+
+.kpi-icon.dividend {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--accent-green);
 }
-.allocation-group {
-  margin-bottom: 24px;
+
+.kpi-icon.best {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold);
 }
-.allocation-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
+
+.kpi-icon.classes {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--accent-blue);
 }
-.allocation-name {
+
+.kpi-icon.largest {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+}
+
+.kpi-icon.tracking {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--accent-red);
+}
+
+.kpi-value {
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
-  font-size: 14px;
-}
-.allocation-percentage {
-  font-weight: 700;
-  color: var(--gold);
-  font-size: 14px;
-}
-.allocation-bar {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
+  margin-bottom: 4px;
+  white-space: nowrap;
   overflow: hidden;
-  margin-bottom: 6px;
+  text-overflow: ellipsis;
 }
-.allocation-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+.kpi-value.best-value,
+.kpi-value.largest-value,
+.kpi-value.tracking-value {
+  font-size: 18px;
 }
-.allocation-amount {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-.allocation-breakdown {
-  margin-left: 16px;
-  padding-left: 14px;
-  border-left: 2px solid rgba(212, 175, 55, 0.15);
-  margin-top: 10px;
-}
-.allocation-sub-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
+
+.kpi-subtext {
   font-size: 12px;
   color: var(--text-muted);
 }
-.sub-name {
-  font-weight: 500;
+
+.kpi-sparkline {
+  margin-top: 12px;
+  height: 30px;
 }
-.sub-amount {
+
+.kpi-sparkline svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Charts Grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.chart-header h2 {
+  font-size: 16px;
   font-weight: 600;
+  margin: 0;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
-@media (max-width: 768px) {
-  .charts-row {
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.chart-wrapper {
+  height: 280px;
+}
+
+.donut-wrapper {
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Allocation Table */
+.allocation-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.allocation-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.allocation-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.allocation-header-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 2fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.allocation-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 2fr;
+  gap: 16px;
+  padding: 14px 0;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.allocation-row:last-child {
+  border-bottom: none;
+}
+
+.alloc-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.alloc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.alloc-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alloc-pct {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.alloc-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.alloc-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Expandable rows */
+.allocation-group-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.allocation-group-item:last-child {
+  border-bottom: none;
+}
+
+.allocation-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.allocation-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.allocation-row.expanded {
+  background: rgba(212, 175, 55, 0.03);
+}
+
+.expand-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.expand-icon.rotated {
+  transform: rotate(90deg);
+}
+
+.alloc-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.allocation-details {
+  padding: 8px 0 16px 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 0.8fr 2fr;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.detail-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detail-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.detail-pct {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.detail-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.detail-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  opacity: 0.7;
+}
+
+/* Expand transition */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 500px;
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .charts-grid {
     grid-template-columns: 1fr;
   }
-  .stat-content .value {
-    font-size: 20px;
+  
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .allocation-header-row,
+  .allocation-row {
+    grid-template-columns: 1.5fr 1fr 0.8fr 1.5fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .allocation-header-row,
+  .allocation-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .alloc-bar {
+    display: none;
   }
 }
 </style>
